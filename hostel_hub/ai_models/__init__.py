@@ -1,0 +1,1 @@
+# Hostel Hub — ai_models package
