@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{% block title %}Hostel Hub{% endblock %}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+{% block head %}{% endblock %}
+</head>
+<body>
+{% if session.get('role') %}
+<nav class="navbar">
+  <div class="nav-brand">
+    <span class="nav-logo">⬡</span>
+    <span class="nav-title">Hostel<strong>Hub</strong></span>
+  </div>
+  <div class="nav-links">
+    {% if session.role == 'student' %}
+      <a href="{{ url_for('student.dashboard') }}" class="nav-link {% if request.endpoint == 'student.dashboard' %}active{% endif %}">Dashboard</a>
+      <a href="{{ url_for('student.profile') }}" class="nav-link {% if request.endpoint == 'student.profile' %}active{% endif %}">Profile</a>
+      <a href="{{ url_for('student.room') }}" class="nav-link">Room</a>
+      <a href="{{ url_for('student.complaints') }}" class="nav-link">Complaints</a>
+      <a href="{{ url_for('student.leave') }}" class="nav-link">Leave</a>
+      <a href="{{ url_for('student.attendance') }}" class="nav-link">Attendance</a>
+      <a href="{{ url_for('student.mess') }}" class="nav-link">Mess</a>
+      <a href="{{ url_for('student.announcements') }}" class="nav-link">Notices</a>
+      <a href="{{ url_for('student.messages') }}" class="nav-link {% if request.endpoint == 'student.messages' %}active{% endif %}">Messages {% if unread_messages_count > 0 %}<span class="nav-unread-badge">{{ unread_messages_count }}</span>{% endif %}</a>
+      <a href="{{ url_for('student.chatbot') }}" class="nav-link nav-ai">AI Chat</a>
+    {% else %}
+      <a href="{{ url_for('warden.dashboard') }}" class="nav-link {% if request.endpoint == 'warden.dashboard' %}active{% endif %}">Dashboard</a>
+      <a href="{{ url_for('warden.students') }}" class="nav-link {% if request.endpoint == 'warden.students' %}active{% endif %}">Students</a>
+      <a href="{{ url_for('warden.rooms') }}" class="nav-link {% if request.endpoint in ('warden.rooms', 'warden.room_detail') %}active{% endif %}">Rooms</a>
+      <a href="{{ url_for('warden.ai_room') }}" class="nav-link nav-ai {% if request.endpoint == 'warden.ai_room' %}active{% endif %}">AI Allocation</a>
+      <a href="{{ url_for('warden.complaints') }}" class="nav-link">Complaints</a>
+      <a href="{{ url_for('warden.leave') }}" class="nav-link">Leave</a>
+      <a href="{{ url_for('warden.attendance') }}" class="nav-link">Attendance</a>
+      <a href="{{ url_for('warden.mess') }}" class="nav-link">Mess</a>
+      <a href="{{ url_for('warden.announcements') }}" class="nav-link">Notices</a>
+      <a href="{{ url_for('warden.messages') }}" class="nav-link {% if request.endpoint == 'warden.messages' %}active{% endif %}">Messages {% if unread_messages_count > 0 %}<span class="nav-unread-badge">{{ unread_messages_count }}</span>{% endif %}</a>
+      <a href="{{ url_for('warden.analytics') }}" class="nav-link nav-ai">Analytics</a>
+      <a href="{{ url_for('warden.emergency') }}" class="nav-link nav-emergency">Emergency</a>
+    {% endif %}
+  </div>
+  <div class="nav-user">
+    <span class="user-pill">{{ session.name }}</span>
+    <a href="{{ url_for('auth.logout') }}" class="btn-logout">Logout</a>
+  </div>
+</nav>
+{% endif %}
+
+<main class="{% if session.get('role') %}main-content{% endif %}">
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for cat, msg in messages %}
+      <div class="alert alert-{{ cat }}">{{ msg }} <span class="alert-close" onclick="this.parentElement.remove()">✕</span></div>
+    {% endfor %}
+  {% endwith %}
+  {% block content %}{% endblock %}
+</main>
+
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

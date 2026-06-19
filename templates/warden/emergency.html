@@ -1,0 +1,206 @@
+{% extends 'base.html' %}
+{% block title %}Emergency Management – Hostel Hub{% endblock %}
+{% block content %}
+<!-- Emergency Banner -->
+{% set active_records = records | selectattr('status', 'equalto', 'active') | list %}
+{% if active_records %}
+  <div class="emergency-banner">
+    <div class="emrg-icon">🚨</div>
+    <div class="emrg-text">
+      <h3>{{ active_records|length }} Active Emergency{{ 's' if active_records|length > 1 else '' }}</h3>
+      <p>Immediate attention required. Review and resolve all active emergencies below.</p>
+    </div>
+    <span class="badge badge-emergency" style="font-size:.85rem;padding:.4rem .9rem">LIVE</span>
+  </div>
+{% endif %}
+
+<div class="page-header">
+  <div>
+    <h1>🚨 Emergency Management</h1>
+    <p class="page-sub">Log, track, and resolve hostel emergencies and incidents</p>
+  </div>
+  <button class="btn btn-danger" onclick="toggleModal('emergency-modal')">+ Log Emergency</button>
+</div>
+
+<!-- Log Emergency Modal -->
+<div id="emergency-modal" class="modal hidden">
+  <div class="modal-card">
+    <div class="modal-header">
+      <h3 style="color:var(--accent-red)">🚨 Log New Emergency</h3>
+      <button onclick="toggleModal('emergency-modal')" class="modal-close">✕</button>
+    </div>
+    <form method="POST" class="auth-form">
+      <div class="form-row">
+        <div class="form-group">
+          <label>Emergency Type *</label>
+          <select name="type" required>
+            <option value="">Select Type</option>
+            <option value="medical">Medical Emergency</option>
+            <option value="fire">Fire / Smoke</option>
+            <option value="flood">Flood / Water Damage</option>
+            <option value="electrical">Electrical Hazard</option>
+            <option value="security">Security Breach / Theft</option>
+            <option value="violence">Violence / Assault</option>
+            <option value="gas">Gas Leak</option>
+            <option value="structural">Structural Damage</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Severity</label>
+          <select name="severity">
+            <option value="low">Low</option>
+            <option value="medium" selected>Medium</option>
+            <option value="high">High</option>
+            <option value="critical">Critical</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Student Involved (optional)</label>
+          <select name="student_id">
+            <option value="">None / Unknown</option>
+            {% for s in students %}
+              <option value="{{ s.id }}">{{ s.name }} ({{ s.reg_number }})</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Location</label>
+          <input type="text" name="location" placeholder="e.g. Block B, Room 201, Corridor">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Description *</label>
+        <textarea name="description" required rows="4"
+          placeholder="Describe the emergency in detail. Include time, people involved, injuries, damage, and immediate actions taken…"></textarea>
+      </div>
+      <div class="ai-hint" style="background:rgba(239,68,68,.08);border-color:rgba(239,68,68,.25);color:#fca5a5">
+        ⚠️ This record will be logged with a timestamp. Contact emergency services (100/108/112) immediately if lives are at risk.
+      </div>
+      <button type="submit" class="btn btn-danger btn-block">Log Emergency</button>
+    </form>
+  </div>
+</div>
+
+<!-- Resolve Modal -->
+<div id="resolve-modal" class="modal hidden">
+  <div class="modal-card" style="max-width:460px">
+    <div class="modal-header">
+      <h3>Resolve Emergency</h3>
+      <button onclick="toggleModal('resolve-modal')" class="modal-close">✕</button>
+    </div>
+    <form id="resolve-form" method="POST" class="auth-form">
+      <div class="form-group">
+        <label>Resolution Notes *</label>
+        <textarea name="notes" required rows="4"
+          placeholder="Describe how the emergency was resolved, actions taken, outcome…"></textarea>
+      </div>
+      <button type="submit" class="btn btn-success btn-block">Mark as Resolved</button>
+    </form>
+  </div>
+</div>
+
+<!-- Filter Tabs -->
+<div style="display:flex;gap:.5rem;margin-bottom:1.5rem;flex-wrap:wrap">
+  <button class="btn btn-sm btn-primary" onclick="filterCards('all',this)">All ({{ records|length }})</button>
+  <button class="btn btn-sm btn-ghost" onclick="filterCards('active',this)" style="color:var(--accent-red)">
+    Active ({{ active_records|length }})
+  </button>
+  <button class="btn btn-sm btn-ghost" onclick="filterCards('resolved',this)">
+    Resolved ({{ records | selectattr('status','equalto','resolved') | list | length }})
+  </button>
+</div>
+
+<!-- Emergency Cards -->
+{% if records %}
+  {% for r in records %}
+    <div class="emergency-card {{ 'active-emergency' if r.status == 'active' else '' }}"
+         data-status="{{ r.status }}">
+      <div class="emrg-card-header">
+        <div>
+          <div style="display:flex;align-items:center;gap:.6rem;margin-bottom:.3rem;flex-wrap:wrap">
+            <span style="font-size:1.4rem">
+              {{ '🔥' if r.type=='fire' else '🏥' if r.type=='medical' else '💧' if r.type=='flood'
+                 else '⚡' if r.type=='electrical' else '🔐' if r.type=='security' else '⚠️' }}
+            </span>
+            <strong style="font-size:1.05rem">{{ r.type.replace('_',' ').title() }}</strong>
+            {% if r.student_name %}
+              <span style="color:var(--text-muted);font-size:.85rem">· {{ r.student_name }}</span>
+            {% endif %}
+            {% if r.location %}
+              <span style="color:var(--text-muted);font-size:.82rem">· 📍 {{ r.location }}</span>
+            {% endif %}
+          </div>
+          <div style="font-size:.8rem;color:var(--text-dim)">
+            Reported by <strong>{{ r.warden_name or 'Unknown' }}</strong>
+            · {{ r.created_at.strftime('%d %b %Y, %I:%M %p') if r.created_at else '—' }}
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:.4rem">
+          <span class="badge badge-{{ r.status }}">{{ r.status.title() }}</span>
+          <span class="badge badge-{{ 'emergency' if r.severity=='critical' else 'high' if r.severity=='high' else 'medium' if r.severity=='medium' else 'low' }}">
+            {{ r.severity.title() }}
+          </span>
+        </div>
+      </div>
+
+      <div style="background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:var(--radius-sm);padding:.85rem;margin:.75rem 0;font-size:.875rem;color:var(--text-muted);line-height:1.6">
+        {{ r.description }}
+      </div>
+
+      {% if r.status == 'resolved' and r.resolution_notes %}
+        <div style="background:rgba(16,185,129,.06);border:1px solid rgba(16,185,129,.2);border-radius:var(--radius-sm);padding:.75rem;font-size:.85rem;color:#6ee7b7">
+          ✅ <strong>Resolution:</strong> {{ r.resolution_notes }}
+          {% if r.resolved_at %}
+            <span style="color:var(--text-dim);margin-left:.5rem">
+              · {{ r.resolved_at.strftime('%d %b %Y, %I:%M %p') if r.resolved_at else '' }}
+            </span>
+          {% endif %}
+        </div>
+      {% endif %}
+
+      {% if r.status == 'active' %}
+        <div style="margin-top:.75rem">
+          <button class="btn btn-success btn-sm"
+            onclick="openResolveModal({{ r.id }})">
+            ✓ Mark Resolved
+          </button>
+        </div>
+      {% endif %}
+    </div>
+  {% endfor %}
+{% else %}
+  <div class="empty-page-state">
+    <div class="eps-icon">🛡️</div>
+    <h3>No Emergencies Logged</h3>
+    <p>All clear! Log an emergency incident when needed using the button above.</p>
+  </div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+function openResolveModal(eid) {
+  document.getElementById('resolve-form').action = '/warden/emergency/' + eid + '/resolve';
+  toggleModal('resolve-modal');
+}
+
+function filterCards(status, btn) {
+  document.querySelectorAll('.emergency-card').forEach(function(card) {
+    if (status === 'all' || card.dataset.status === status) {
+      card.style.display = 'block';
+    } else {
+      card.style.display = 'none';
+    }
+  });
+  document.querySelectorAll('[onclick^="filterCards"]').forEach(b => b.classList.remove('btn-primary'));
+  document.querySelectorAll('[onclick^="filterCards"]').forEach(b => {
+    if (!b.classList.contains('btn-primary')) b.classList.add('btn-ghost');
+  });
+  btn.classList.remove('btn-ghost');
+  btn.classList.add('btn-primary');
+}
+</script>
+{% endblock %}

@@ -1,0 +1,94 @@
+{% extends 'base.html' %}
+{% block title %}{{ student.name }} – Hostel Hub{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div><a href="{{ url_for('warden.students') }}" class="back-link">← Students</a><h1>{{ student.name }}</h1></div>
+  <div>
+    <form method="POST" action="{{ url_for('warden.delete_student', sid=student.id) }}" onsubmit="return confirm('Warning: Deleting this student will permanently erase their attendance, complaints, leave history, and all other database records. Are you sure you want to proceed?');">
+      <button type="submit" class="btn btn-outline text-danger" style="border-color: #ef4444; color: #ef4444;">Delete Student</button>
+    </form>
+  </div>
+</div>
+<div class="profile-layout">
+  <div class="profile-card-left">
+    <div class="avatar-circle">{{ student.name[0].upper() }}</div>
+    <h3>{{ student.name }}</h3>
+    <div class="profile-badge">{{ student.reg_number }}</div>
+    <div class="profile-meta-list">
+      <div>📧 {{ student.email }}</div>
+      <div>📞 {{ student.phone or 'N/A' }}</div>
+      <div>🏛️ {{ student.department or 'N/A' }} · Year {{ student.year }}</div>
+      <div>🏠 {{ student.room_number or 'No room' }}</div>
+    </div>
+    <form method="POST" action="{{ url_for('warden.assign_room') }}" style="margin-top:1rem">
+      <input type="hidden" name="student_id" value="{{ student.id }}">
+      <div class="form-group">
+        <label>Assign Room</label>
+        <select name="room_id">
+          <option value="">Select Room</option>
+          {% for r in available_rooms %}
+            <option value="{{ r.id }}">{{ r.room_number }} (Block {{ r.block }}, {{ r.available }} free)</option>
+          {% endfor %}
+        </select>
+      </div>
+      <button type="submit" class="btn btn-primary btn-sm btn-block">Assign Room</button>
+    </form>
+  </div>
+  <div class="profile-form-section">
+    <!-- Tabs -->
+    <div class="tabs">
+      <button class="tab-btn active" onclick="showTab('comp-tab',this)">Complaints ({{ complaints|length }})</button>
+      <button class="tab-btn" onclick="showTab('leave-tab',this)">Leave ({{ leaves|length }})</button>
+      <button class="tab-btn" onclick="showTab('att-tab',this)">Attendance ({{ attendance|length }})</button>
+    </div>
+    <div id="comp-tab" class="tab-content">
+      {% if complaints %}
+        <table class="data-table"><thead><tr><th>Title</th><th>Category</th><th>Priority</th><th>Status</th><th>Date</th></tr></thead>
+        <tbody>{% for c in complaints %}<tr>
+          <td>{{ c.title[:40] }}</td>
+          <td><span class="badge badge-cat">{{ c.category }}</span></td>
+          <td><span class="badge badge-{{ c.ai_priority or c.priority }}">{{ (c.ai_priority or c.priority).title() }}</span></td>
+          <td><span class="badge badge-{{ c.status }}">{{ c.status.replace('_',' ').title() }}</span></td>
+          <td>{{ c.created_at.strftime('%d %b') if c.created_at else '' }}</td>
+        </tr>{% endfor %}</tbody></table>
+      {% else %}<div class="empty-state">No complaints.</div>{% endif %}
+    </div>
+    <div id="leave-tab" class="tab-content hidden">
+      {% if leaves %}
+        <table class="data-table"><thead><tr><th>From</th><th>To</th><th>Status</th><th>Reason</th></tr></thead>
+        <tbody>{% for l in leaves %}<tr>
+          <td>{{ l.from_date }}</td><td>{{ l.to_date }}</td>
+          <td><span class="badge badge-{{ l.status }}">{{ l.status.title() }}</span></td>
+          <td>{{ l.reason[:50] }}</td>
+        </tr>{% endfor %}</tbody></table>
+      {% else %}<div class="empty-state">No leave requests.</div>{% endif %}
+    </div>
+    <div id="att-tab" class="tab-content hidden">
+      {% if attendance %}
+        <table class="data-table"><thead><tr><th>Date</th><th>Status</th><th>Remarks</th></tr></thead>
+        <tbody>{% for a in attendance %}<tr>
+          <td>{{ a.date }}</td>
+          <td><span class="badge badge-{{ a.status }}">{{ a.status.title() }}</span></td>
+          <td>{{ a.remarks or '—' }}</td>
+        </tr>{% endfor %}</tbody></table>
+      {% else %}<div class="empty-state">No attendance records.</div>{% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+// pre-fetch available rooms for assign form
+fetch('/api/rooms/available').then(r=>r.json()).then(rooms => {
+  const sel = document.querySelector('select[name="room_id"]');
+  if(!sel) return;
+  sel.innerHTML = '<option value="">Select Room</option>';
+  rooms.forEach(r => {
+    const opt = document.createElement('option');
+    opt.value = r.id;
+    opt.textContent = `${r.room_number} (Block ${r.block}, ${r.available} free)`;
+    sel.appendChild(opt);
+  });
+});
+</script>
+{% endblock %}

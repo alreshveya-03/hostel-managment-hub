@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Warden Register – Hostel Hub</title>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+</head>
+<body>
+<div class="auth-page">
+  <div class="auth-left" style="background:linear-gradient(135deg,rgba(16,185,129,.15),rgba(6,78,59,.3));">
+    <div class="auth-brand"><span class="auth-logo" style="color:var(--accent-green)">⬡</span><span>Hostel<strong>Hub</strong></span></div>
+    <h2 class="auth-tagline">Admin registration<br>for wardens.</h2>
+  </div>
+  <div class="auth-right">
+    <div class="auth-card">
+      <div class="auth-header">
+        <h1>Warden Register</h1>
+        <p>Create your warden account</p>
+      </div>
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% for cat, msg in messages %}
+          <div class="alert alert-{{ cat }}">{{ msg }}</div>
+        {% endfor %}
+      {% endwith %}
+      <form method="POST" class="auth-form">
+        <div class="form-group"><label>Full Name *</label><input type="text" name="name" required placeholder="Warden name"></div>
+        <div class="form-group"><label>Email *</label><input type="email" name="email" required placeholder="warden@hostelhub.com"></div>
+        <div class="form-group"><label>Phone *</label><input type="tel" name="phone" required placeholder="10-digit number"></div>
+        <div class="form-group">
+          <label>Hostel Block *</label>
+          <select name="hostel_block" required>
+            <option value="">Select Block</option>
+            <option value="Block A">Block A</option>
+            <option value="Block B">Block B</option>
+            <option value="Block C">Block C</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Password *</label><input type="password" name="password" required placeholder="Min 6 characters"></div>
+        <button type="submit" class="btn btn-primary btn-block" style="background:var(--accent-green)">Create Warden Account →</button>
+      </form>
+      <div class="auth-footer">
+        <a href="{{ url_for('auth.warden_login') }}">Already have an account? Login</a>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Warden Login – Hostel Hub</title>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+</head>
+<body>
+<div class="auth-page">
+  <div class="auth-left" style="background:linear-gradient(135deg,rgba(16,185,129,.15),rgba(6,78,59,.3));">
+    <div class="auth-brand"><span class="auth-logo" style="color:var(--accent-green)">⬡</span><span>Hostel<strong>Hub</strong></span></div>
+    <h2 class="auth-tagline">Manage your hostel<br>intelligently.</h2>
+    <div class="auth-features">
+      <div class="af">📊 Analytics Dashboard</div>
+      <div class="af">🤖 AI Room Suggestions</div>
+      <div class="af">🚨 Emergency Alerts</div>
+      <div class="af">📋 Leave Management</div>
+    </div>
+  </div>
+  <div class="auth-right">
+    <div class="auth-card">
+      <div class="auth-header">
+        <h1>Warden Login</h1>
+        <p>Access the administration portal</p>
+      </div>
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% for cat, msg in messages %}
+          <div class="alert alert-{{ cat }}">{{ msg }}</div>
+        {% endfor %}
+      {% endwith %}
+      <form method="POST" class="auth-form">
+        <div class="form-group">
+          <label>Email Address</label>
+          <input type="email" name="email" required placeholder="warden@hostelhub.com">
+        </div>
+        <div class="form-group">
+          <label>Password</label>
+          <input type="password" name="password" required placeholder="••••••••">
+        </div>
+        <button type="submit" class="btn btn-primary btn-block" style="background:var(--accent-green)">Login as Warden →</button>
+      </form>
+      <div class="auth-footer">
+        <a href="{{ url_for('auth.warden_register') }}">Register as Warden</a>
+        <span>|</span>
+        <a href="{{ url_for('auth.student_login') }}">Student Login</a>
+        <span>|</span>
+        <a href="{{ url_for('auth.index') }}">← Home</a>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

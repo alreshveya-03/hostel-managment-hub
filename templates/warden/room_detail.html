@@ -1,0 +1,177 @@
+{% extends 'base.html' %}
+{% block title %}Room {{ room.room_number }} – Hostel Hub{% endblock %}
+{% block content %}
+<div style="margin-bottom: 1rem;">
+  <a href="{{ url_for('warden.rooms') }}" class="btn btn-outline">← Back to Rooms</a>
+</div>
+
+<div class="page-header">
+  <div>
+    <h1>Room {{ room.room_number }} Details</h1>
+    <p class="page-sub">Manage occupancy, occupants, and smart allocations for this room</p>
+  </div>
+  <div style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
+    <span class="badge {{ 'badge-danger' if room.available == 0 else 'badge-success' }}" style="font-size: 0.9rem; padding: 0.5rem 1rem;">
+      {{ 'Full Capacity' if room.available == 0 else '' + room.available|string + ' Bed(s) Available' }}
+    </span>
+    <form method="POST" action="{{ url_for('warden.delete_room', room_no=room.room_number) }}" onsubmit="return confirm('Are you sure you want to delete Room {{ room.room_number }}? This action cannot be undone.');" style="margin: 0;">
+      {% if occupants %}
+        <button type="button" class="btn btn-outline text-muted" style="border-color: #d1d5db; color: #9ca3af; padding: 0.5rem 1rem;" onclick="alert('Cannot delete room because it is currently occupied by: {% for s in occupants %}{{ s.name }}{% if not loop.last %}, {% endif %}{% endfor %}. Please unassign all students first.');">Delete Room</button>
+      {% else %}
+        <button type="submit" class="btn btn-outline text-danger" style="border-color: #ef4444; color: #ef4444; padding: 0.5rem 1rem;">Delete Room</button>
+      {% endif %}
+    </form>
+  </div>
+</div>
+
+<div class="ai-room-layout">
+  <!-- Left Column: Room Info and Occupants -->
+  <div>
+    <div class="form-card" style="margin-bottom: 1.5rem;">
+      <h3>Room Information</h3>
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 1rem; margin-top: 1rem;">
+        <div class="rd"><span class="rd-label">Block</span><strong class="rd-value">{{ room.block }}</strong></div>
+        <div class="rd"><span class="rd-label">Floor</span><strong class="rd-value">Floor {{ room.floor }}</strong></div>
+        <div class="rd"><span class="rd-label">Type</span><strong class="rd-value">{{ room.room_type.title() }}</strong></div>
+        <div class="rd"><span class="rd-label">AC Available</span><strong class="rd-value">{{ 'Yes' if room.ac_available else 'No' }}</strong></div>
+        <div class="rd"><span class="rd-label">Occupied</span><strong class="rd-value">{{ room.occupied }} / {{ room.capacity }} Beds</strong></div>
+      </div>
+    </div>
+
+    <div class="form-card">
+      <h3>Current Occupants ({{ occupants|length }} / {{ room.capacity }})</h3>
+      <div style="margin-top: 1rem;">
+        {% if occupants %}
+          {% for student in occupants %}
+            <div class="roommate-card" style="display: flex; justify-content: space-between; align-items: center; padding: 1rem 0; border-bottom: 1px solid var(--border-color, #e5e7eb);">
+              <div style="display: flex; gap: 1rem; align-items: center;">
+                <div class="rm-avatar">{{ student.name[0].upper() }}</div>
+                <div class="rm-info">
+                  <strong>{{ student.name }}</strong>
+                  <div style="font-size: 0.85rem; color: var(--text-muted, #6b7280);">
+                    {{ student.register_number }} · {{ student.department }} · Year {{ student.year }}
+                  </div>
+                  {% if student.phone %}
+                    <div style="font-size: 0.8rem; color: var(--text-muted, #6b7280);">📞 {{ student.phone }}</div>
+                  {% endif %}
+                </div>
+              </div>
+              <div>
+                <form method="POST" action="{{ url_for('warden.unassign_room', sid=student.id) }}" onsubmit="return confirm('Are you sure you want to remove {{ student.name }} from this room?');">
+                  <button type="submit" class="btn btn-sm btn-outline text-danger" style="border-color: #ef4444; color: #ef4444;">Remove</button>
+                </form>
+              </div>
+            </div>
+          {% endfor %}
+        {% else %}
+          <div class="empty-state" style="padding: 2rem 0;">No occupants in this room yet.</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Right Column: Assign Student & AI Compatibility -->
+  <div>
+    {% if room.available > 0 %}
+      <div class="form-card">
+        <h3>Assign Student</h3>
+        <p class="page-sub">Select an unassigned student to view compatibility and allocate a bed.</p>
+        
+        <form method="POST" action="{{ url_for('warden.assign_room') }}" style="margin-top: 1rem;">
+          <input type="hidden" name="room_id" value="{{ room.room_number }}">
+          <input type="hidden" name="next" value="{{ url_for('warden.room_detail', room_no=room.room_number) }}">
+          
+          <div class="form-group" style="margin-bottom: 1.25rem;">
+            <label for="student-select">Select Student</label>
+            <select id="student-select" name="student_id" required onchange="checkCompatibility(this.value)">
+              <option value="">— Choose a student —</option>
+              {% for s in unassigned %}
+                <option value="{{ s.id }}">
+                  {{ s.name }} · {{ s.register_number }} ({{ s.department or 'N/A' }} · Yr {{ s.year }})
+                </option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <!-- Live AI Compatibility Preview -->
+          <div id="ai-compatibility-preview" class="suggest-result-card" style="display: none; margin-bottom: 1.25rem; border: 1px solid var(--accent-purple); border-left-width: 4px;">
+            <div class="src-header">
+              <span class="src-room">🤖 AI Compatibility Match</span>
+              <span id="compatibility-score" class="src-score" style="background-color: var(--accent-purple); color: white; padding: 0.15rem 0.5rem; border-radius: 4px; font-weight: 600;">--</span>
+            </div>
+            <div id="compatibility-reason" class="src-reason" style="margin-top: 0.5rem; font-size: 0.88rem; color: var(--text-muted);">
+              Analyzing...
+            </div>
+          </div>
+
+          <button type="submit" class="btn btn-primary btn-block">Assign Selected Student</button>
+        </form>
+      </div>
+    {% else %}
+      <div class="form-card" style="text-align: center; padding: 3rem 2rem;">
+        <div style="font-size: 3rem; margin-bottom: 1rem;">🔒</div>
+        <h3>Room at Full Capacity</h3>
+        <p style="color: var(--text-muted);">This room has no available beds. Unassign an occupant first if you want to assign a new student.</p>
+      </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function checkCompatibility(studentId) {
+  const previewBox = document.getElementById('ai-compatibility-preview');
+  const scoreSpan = document.getElementById('compatibility-score');
+  const reasonDiv = document.getElementById('compatibility-reason');
+  
+  if (!studentId) {
+    previewBox.style.display = 'none';
+    return;
+  }
+  
+  previewBox.style.display = 'block';
+  scoreSpan.textContent = 'Analysing...';
+  reasonDiv.textContent = 'Comparing preferences and occupancy details...';
+  
+  try {
+    const currentRoomNo = "{{ room.room_number }}";
+    const res = await fetch(`/api/rooms/suggest?student_id=${studentId}&limit=100`);
+    if (!res.ok) throw new Error('API error');
+    
+    const data = await res.json();
+    const suggestions = data.suggestions || [];
+    
+    // Find the current room in the list of scored suggestions
+    const match = suggestions.find(r => r.room_number === currentRoomNo);
+    
+    if (match) {
+      scoreSpan.textContent = `${match.score}%`;
+      reasonDiv.innerHTML = `<strong>Reasoning:</strong> ${match.reason}`;
+      
+      // Dynamic styling based on score
+      if (match.score >= 75) {
+        previewBox.style.borderColor = '#10b981'; // Green
+        scoreSpan.style.backgroundColor = '#10b981';
+      } else if (match.score >= 50) {
+        previewBox.style.borderColor = '#f59e0b'; // Amber
+        scoreSpan.style.backgroundColor = '#f59e0b';
+      } else {
+        previewBox.style.borderColor = '#ef4444'; // Red
+        scoreSpan.style.backgroundColor = '#ef4444';
+      }
+    } else {
+      scoreSpan.textContent = 'Low';
+      reasonDiv.innerHTML = '<strong>Reasoning:</strong> Room does not fit basic year or department filters.';
+      previewBox.style.borderColor = '#9ca3af'; // Gray
+      scoreSpan.style.backgroundColor = '#9ca3af';
+    }
+  } catch (e) {
+    scoreSpan.textContent = 'Error';
+    reasonDiv.textContent = 'Could not load AI recommendations.';
+    previewBox.style.borderColor = '#9ca3af';
+    scoreSpan.style.backgroundColor = '#9ca3af';
+  }
+}
+</script>
+{% endblock %}

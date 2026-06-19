@@ -1,0 +1,143 @@
+{% extends 'base.html' %}
+{% block title %}Mess Management – Hostel Hub{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>Mess Management</h1>
+    <p class="page-sub">Manage weekly menu, view feedback analytics and sentiment analysis</p>
+  </div>
+  <button class="btn btn-primary" onclick="toggleModal('menu-modal')">+ Update Menu</button>
+</div>
+
+<!-- Feedback Stats Row -->
+<div class="stats-grid" style="margin-bottom:1.5rem">
+  {% for s in avg_ratings %}
+    <div class="stat-card">
+      <div class="stat-icon">{{ '🌅' if s.meal_type=='breakfast' else '☀️' if s.meal_type=='lunch' else '🌙' }}</div>
+      <div class="stat-info">
+        <div class="stat-value">{{ s.avg_rating }}<span style="font-size:1rem;color:var(--text-muted)">/5</span></div>
+        <div class="stat-label">{{ s.meal_type.title() }} Avg Rating</div>
+      </div>
+    </div>
+  {% else %}
+    <div class="stat-card"><div class="stat-icon">📊</div><div class="stat-info"><div class="stat-value">N/A</div><div class="stat-label">No ratings yet</div></div></div>
+  {% endfor %}
+  {% for s in stats %}
+    <div class="stat-card {{ 'stat-success' if s.sentiment=='positive' else 'stat-danger' if s.sentiment=='negative' else '' }}">
+      <div class="stat-icon">{{ '😊' if s.sentiment=='positive' else '😞' if s.sentiment=='negative' else '😐' }}</div>
+      <div class="stat-info">
+        <div class="stat-value">{{ s.cnt }}</div>
+        <div class="stat-label">{{ (s.sentiment or 'unknown').title() }} Feedback</div>
+      </div>
+    </div>
+  {% endfor %}
+</div>
+
+<!-- Tabs: Menu | Feedback -->
+<div class="tabs" style="max-width:400px">
+  <button class="tab-btn active" onclick="showTab('menu-tab',this)">Weekly Menu</button>
+  <button class="tab-btn" onclick="showTab('feedback-tab',this)">Student Feedback</button>
+</div>
+
+<!-- Weekly Menu -->
+<div id="menu-tab" class="tab-content">
+  <div class="mess-grid">
+    {% set days = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'] %}
+    {% set meals = ['breakfast','lunch','dinner'] %}
+    {% for day in days %}
+      <div class="mess-day-card">
+        <div class="mess-day-name">{{ day }}</div>
+        {% for meal in meals %}
+          {% set item = menu | selectattr('day_of_week','equalto',day) | selectattr('meal_type','equalto',meal) | first %}
+          {% if item %}
+            <div class="mess-meal">
+              <span class="meal-label meal-{{ meal }}">{{ meal.title() }}</span>
+              <span class="meal-items">{{ item['items'] }}</span>
+              {% if item.calories %}<span class="meal-cal">{{ item.calories }} kcal</span>{% endif %}
+            </div>
+          {% else %}
+            <div class="mess-meal">
+              <span class="meal-label meal-{{ meal }}">{{ meal.title() }}</span>
+              <span class="meal-items" style="color:var(--text-dim);font-style:italic">Not set</span>
+            </div>
+          {% endif %}
+        {% endfor %}
+      </div>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- Feedback -->
+<div id="feedback-tab" class="tab-content hidden">
+  {% if feedbacks %}
+    <div class="feedback-list">
+      {% for fb in feedbacks %}
+        <div class="fb-card">
+          <div class="fb-header">
+            <span class="meal-label meal-{{ fb.meal_type }}">{{ fb.meal_type.title() }}</span>
+            <span class="fb-rating">{{ '⭐' * fb.rating if fb.rating else '' }}</span>
+            {% if fb.sentiment %}
+              <span class="badge badge-sentiment-{{ fb.sentiment }}">
+                {{ '😊' if fb.sentiment=='positive' else '😞' if fb.sentiment=='negative' else '😐' }}
+                {{ fb.sentiment.title() }}
+              </span>
+            {% endif %}
+            <strong style="font-size:.85rem">{{ fb.student_name }}</strong>
+            <span class="fb-date">{{ fb.date }}</span>
+          </div>
+          {% if fb.feedback_text %}
+            <div class="fb-text">{{ fb.feedback_text }}</div>
+          {% endif %}
+        </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="empty-page-state">
+      <div class="eps-icon">💬</div>
+      <h3>No Feedback Yet</h3>
+      <p>Student mess feedback will appear here with AI sentiment analysis.</p>
+    </div>
+  {% endif %}
+</div>
+
+<!-- Update Menu Modal -->
+<div id="menu-modal" class="modal hidden">
+  <div class="modal-card">
+    <div class="modal-header">
+      <h3>Update Mess Menu</h3>
+      <button onclick="toggleModal('menu-modal')" class="modal-close">✕</button>
+    </div>
+    <form method="POST" class="auth-form">
+      <div class="form-row">
+        <div class="form-group">
+          <label>Day *</label>
+          <select name="day" required>
+            <option value="">Select Day</option>
+            {% for d in ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'] %}
+              <option value="{{ d }}">{{ d }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Meal Type *</label>
+          <select name="meal_type" required>
+            <option value="breakfast">Breakfast</option>
+            <option value="lunch">Lunch</option>
+            <option value="dinner">Dinner</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Menu Items *</label>
+        <textarea name="items" required rows="3" placeholder="e.g. Idli, Sambar, Chutney, Tea"></textarea>
+      </div>
+      <div class="form-group">
+        <label>Approximate Calories</label>
+        <input type="number" name="calories" min="0" placeholder="e.g. 450">
+      </div>
+      <div class="ai-hint">ℹ️ Updating an existing day/meal combination will overwrite the current entry.</div>
+      <button type="submit" class="btn btn-primary btn-block">Save Menu</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

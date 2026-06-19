@@ -1,0 +1,69 @@
+{% extends 'base.html' %}
+{% block title %}Mess – Hostel Hub{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Mess Menu & Feedback</h1>
+  <button class="btn btn-primary" onclick="toggleModal('feedback-modal')">+ Submit Feedback</button>
+</div>
+
+<div id="feedback-modal" class="modal hidden">
+  <div class="modal-card">
+    <div class="modal-header"><h3>Mess Feedback</h3><button onclick="toggleModal('feedback-modal')" class="modal-close">✕</button></div>
+    <form method="POST" action="{{ url_for('student.mess_feedback') }}" class="auth-form">
+      <div class="form-row">
+        <div class="form-group"><label>Meal Type</label>
+          <select name="meal_type"><option value="breakfast">Breakfast</option><option value="lunch" selected>Lunch</option><option value="dinner">Dinner</option></select>
+        </div>
+        <div class="form-group"><label>Rating (1-5)</label>
+          <select name="rating"><option value="5">⭐⭐⭐⭐⭐ Excellent</option><option value="4">⭐⭐⭐⭐ Good</option><option value="3" selected>⭐⭐⭐ Average</option><option value="2">⭐⭐ Poor</option><option value="1">⭐ Terrible</option></select>
+        </div>
+      </div>
+      <div class="form-group"><label>Feedback *</label><textarea name="feedback_text" required rows="3" placeholder="Tell us about the food quality, quantity, hygiene…"></textarea></div>
+      <div class="ai-hint">🤖 AI sentiment analysis will process your feedback automatically.</div>
+      <button type="submit" class="btn btn-primary btn-block">Submit Feedback</button>
+    </form>
+  </div>
+</div>
+
+<!-- Weekly Menu Table -->
+<div class="section-header" style="margin-bottom:1rem"><h3>Weekly Menu</h3></div>
+<div class="mess-grid">
+  {% set days = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'] %}
+  {% set meals = ['breakfast','lunch','dinner'] %}
+  {% for day in days %}
+    <div class="mess-day-card">
+      <div class="mess-day-name">{{ day }}</div>
+      {% for meal in meals %}
+        {% set item = menu | selectattr('day_of_week','eq',day) | selectattr('meal_type','eq',meal) | first %}
+        {% if item %}
+          <div class="mess-meal">
+            <span class="meal-label meal-{{ meal }}">{{ meal.title() }}</span>
+            <span class="meal-items">{{ item['items'] }}</span>
+            {% if item.calories %}<span class="meal-cal">{{ item.calories }} kcal</span>{% endif %}
+          </div>
+        {% endif %}
+      {% endfor %}
+    </div>
+  {% endfor %}
+</div>
+
+<!-- Recent Feedbacks -->
+{% if feedbacks %}
+  <div class="section-header" style="margin:2rem 0 1rem"><h3>My Recent Feedback</h3></div>
+  <div class="feedback-list">
+    {% for fb in feedbacks %}
+      <div class="fb-card">
+        <div class="fb-header">
+          <span class="meal-label meal-{{ fb.meal_type }}">{{ fb.meal_type.title() }}</span>
+          <span class="fb-rating">{{ '⭐' * fb.rating }}</span>
+          {% if fb.sentiment %}
+            <span class="badge badge-sentiment-{{ fb.sentiment }}">{{ fb.sentiment.title() }}</span>
+          {% endif %}
+          <span class="fb-date">{{ fb.date }}</span>
+        </div>
+        <div class="fb-text">{{ fb.feedback_text }}</div>
+      </div>
+    {% endfor %}
+  </div>
+{% endif %}
+{% endblock %}

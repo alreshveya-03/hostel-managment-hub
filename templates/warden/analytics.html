@@ -1,0 +1,249 @@
+{% extends 'base.html' %}
+{% block title %}Analytics – Hostel Hub{% endblock %}
+{% block head %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>📊 Hostel Analytics</h1>
+    <p class="page-sub">AI-powered insights, trends, and predictive analysis</p>
+  </div>
+  <a href="{{ url_for('warden.dashboard') }}" class="btn btn-ghost">← Dashboard</a>
+</div>
+
+<!-- Summary Stats -->
+<div class="stats-grid stats-grid-6" style="margin-bottom:1.5rem">
+  <div class="stat-card">
+    <div class="stat-icon">🏠</div>
+    <div class="stat-info">
+      <div class="stat-value">{{ room_stats.total_cap or 0 }}</div>
+      <div class="stat-label">Total Capacity</div>
+    </div>
+  </div>
+  <div class="stat-card stat-success">
+    <div class="stat-icon">🔒</div>
+    <div class="stat-info">
+      <div class="stat-value">{{ room_stats.total_occ or 0 }}</div>
+      <div class="stat-label">Occupied Beds</div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon">📈</div>
+    <div class="stat-info">
+      <div class="stat-value">
+        {% if room_stats.total_cap and room_stats.total_cap > 0 %}
+          {{ ((room_stats.total_occ / room_stats.total_cap) * 100)|round(1) }}%
+        {% else %}0%{% endif %}
+      </div>
+      <div class="stat-label">Occupancy Rate</div>
+    </div>
+  </div>
+  <div class="stat-card stat-warning">
+    <div class="stat-icon">🔧</div>
+    <div class="stat-info">
+      <div class="stat-value">{{ comp_by_status | selectattr('status','equalto','pending') | map(attribute='cnt') | first | default(0) }}</div>
+      <div class="stat-label">Open Complaints</div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon">😊</div>
+    <div class="stat-info">
+      <div class="stat-value">{{ sentiment_stats | selectattr('sentiment','equalto','positive') | map(attribute='cnt') | first | default(0) }}</div>
+      <div class="stat-label">Positive Feedbacks</div>
+    </div>
+  </div>
+  <div class="stat-card stat-danger">
+    <div class="stat-icon">😞</div>
+    <div class="stat-info">
+      <div class="stat-value">{{ sentiment_stats | selectattr('sentiment','equalto','negative') | map(attribute='cnt') | first | default(0) }}</div>
+      <div class="stat-label">Negative Feedbacks</div>
+    </div>
+  </div>
+</div>
+
+<!-- Charts Row 1 -->
+<div class="chart-grid">
+  <!-- Complaint Categories -->
+  <div class="chart-card">
+    <h3>Complaints by Category</h3>
+    <div class="chart-canvas"><canvas id="catChart"></canvas></div>
+  </div>
+
+  <!-- Complaint Priority (AI) -->
+  <div class="chart-card">
+    <h3>Complaints by Priority (AI)</h3>
+    <div class="chart-canvas"><canvas id="priChart"></canvas></div>
+  </div>
+</div>
+
+<!-- Charts Row 2 -->
+<div class="chart-grid">
+  <!-- Complaint Status -->
+  <div class="chart-card">
+    <h3>Complaint Status Breakdown</h3>
+    <div class="chart-canvas"><canvas id="statusChart"></canvas></div>
+  </div>
+
+  <!-- Sentiment Analysis -->
+  <div class="chart-card">
+    <h3>Mess Feedback Sentiment (AI)</h3>
+    <div class="chart-canvas"><canvas id="sentimentChart"></canvas></div>
+  </div>
+</div>
+
+<!-- Charts Row 3 -->
+<div class="chart-grid">
+  <!-- Attendance Trend -->
+  <div class="chart-card" style="grid-column:1/-1">
+    <h3>Attendance Trend (Last 14 Days)</h3>
+    <div class="chart-canvas" style="height:180px"><canvas id="attChart"></canvas></div>
+  </div>
+</div>
+
+<!-- Charts Row 4 -->
+<div class="chart-grid">
+  <!-- Occupancy by Block -->
+  <div class="chart-card">
+    <h3>Occupancy by Block</h3>
+    <div class="chart-canvas"><canvas id="blockChart"></canvas></div>
+  </div>
+
+  <!-- Complaint Trend Prediction -->
+  {% if comp_trend %}
+  <div class="chart-card">
+    <h3>Complaint Trend + 7-Day Forecast</h3>
+    <div class="chart-canvas"><canvas id="trendChart"></canvas></div>
+  </div>
+  {% endif %}
+</div>
+
+<!-- At-Risk Students -->
+{% if at_risk %}
+<div class="dash-section" style="margin-top:1rem">
+  <div class="section-header">
+    <h3>⚠️ At-Risk Students (Attendance &lt; 75%)</h3>
+    <span class="count-badge">{{ at_risk|length }} students</span>
+  </div>
+  <div class="at-risk-list" style="margin-top:.75rem">
+    {% for s in at_risk %}
+      <div class="risk-row {{ 'risk-medium' if s.risk == 'medium' else '' }}">
+        <div>
+          <strong>{{ s.name }}</strong>
+          <span style="color:var(--text-muted);font-size:.8rem;margin-left:.5rem">{{ s.reg_number }} · {{ s.department }}</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:.75rem">
+          <div class="room-occ-bar" style="width:100px">
+            <div class="occ-fill" style="width:{{ s.pct }}%;background:{{ 'var(--accent-red)' if s.pct < 50 else 'var(--accent-amber)' }}"></div>
+          </div>
+          <span style="font-size:.875rem;font-weight:700;color:{{ 'var(--accent-red)' if s.pct < 50 else 'var(--accent-amber)' }}">
+            {{ s.pct }}%
+          </span>
+          <span class="badge badge-{{ 'high' if s.risk=='high' else 'medium' }}">{{ s.risk.title() }} Risk</span>
+          <a href="{{ url_for('warden.student_detail', sid=s.id) }}" class="btn btn-sm btn-outline">View</a>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+// ── Data from Jinja2 ─────────────────────────────────────────
+const catLabels  = {{ comp_by_cat  | map(attribute='category') | list | tojson }};
+const catData    = {{ comp_by_cat  | map(attribute='cnt')      | list | tojson }};
+const priLabels  = {{ comp_by_pri  | map(attribute='pr')       | list | tojson }};
+const priData    = {{ comp_by_pri  | map(attribute='cnt')      | list | tojson }};
+const statLabels = {{ comp_by_status | map(attribute='status') | list | tojson }};
+const statData   = {{ comp_by_status | map(attribute='cnt')    | list | tojson }};
+const sentLabels = {{ sentiment_stats | map(attribute='sentiment') | list | tojson }};
+const sentData   = {{ sentiment_stats | map(attribute='cnt')       | list | tojson }};
+const attDates   = {{ att_trend | map(attribute='date')   | list | map('string') | list | tojson }};
+const attPresent = {{ att_trend | map(attribute='present')| list | tojson }};
+const attAbsent  = {{ att_trend | map(attribute='absent') | list | tojson }};
+const blockLabels = {{ occ_block | map(attribute='block') | list | tojson }};
+const blockCap    = {{ occ_block | map(attribute='cap')   | list | tojson }};
+const blockOcc    = {{ occ_block | map(attribute='occ')   | list | tojson }};
+{% if comp_trend %}
+const trendLabels = {{ comp_trend.labels     | tojson }};
+const trendActual = {{ comp_trend.actuals    | tojson }};
+const trendProj   = {{ comp_trend.projection | tojson }};
+{% endif %}
+
+// ── Color palette ────────────────────────────────────────────
+const COLORS = ['#6366f1','#10b981','#f59e0b','#ef4444','#3b82f6','#ec4899','#8b5cf6','#14b8a6'];
+const PCOLORS = { emergency:'#ef4444', high:'#f59e0b', medium:'#6366f1', low:'#10b981' };
+const SCOLORS = { positive:'#10b981', negative:'#ef4444', neutral:'#6366f1' };
+
+function makeDonut(id, labels, data, colorMap) {
+  const ctx = document.getElementById(id);
+  if (!ctx || !data.length) return;
+  new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels,
+      datasets: [{ data, backgroundColor: labels.map((l,i) => colorMap ? (colorMap[l] || COLORS[i%COLORS.length]) : COLORS[i%COLORS.length]), borderWidth: 0 }]
+    },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right' } } }
+  });
+}
+
+function makeBar(id, labels, datasets, stacked) {
+  const ctx = document.getElementById(id);
+  if (!ctx) return;
+  new Chart(ctx, {
+    type: 'bar',
+    data: { labels, datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      scales: {
+        x: { stacked: !!stacked, grid: { display: false } },
+        y: { stacked: !!stacked, beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' } }
+      }
+    }
+  });
+}
+
+function makeLine(id, labels, datasets) {
+  const ctx = document.getElementById(id);
+  if (!ctx) return;
+  new Chart(ctx, {
+    type: 'line',
+    data: { labels, datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      scales: {
+        x: { grid: { display: false } },
+        y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' } }
+      },
+      elements: { line: { tension: 0.4 } }
+    }
+  });
+}
+
+// Build charts
+makeDonut('catChart', catLabels, catData, null);
+makeDonut('priChart', priLabels, priData, PCOLORS);
+makeDonut('statusChart', statLabels, statData, { pending:'#f59e0b', in_progress:'#3b82f6', resolved:'#10b981' });
+makeDonut('sentimentChart', sentLabels, sentData, SCOLORS);
+
+makeLine('attChart', attDates, [
+  { label: 'Present', data: attPresent, borderColor: '#10b981', backgroundColor: 'rgba(16,185,129,.15)', fill: true },
+  { label: 'Absent',  data: attAbsent,  borderColor: '#ef4444', backgroundColor: 'rgba(239,68,68,.1)',   fill: true }
+]);
+
+makeBar('blockChart', blockLabels, [
+  { label: 'Occupied', data: blockOcc, backgroundColor: '#6366f1' },
+  { label: 'Vacant',   data: blockCap.map((c,i) => c - blockOcc[i]), backgroundColor: 'rgba(255,255,255,.07)' }
+], true);
+
+{% if comp_trend %}
+makeLine('trendChart', trendLabels.concat(['D+1','D+2','D+3','D+4','D+5','D+6','D+7']), [
+  { label: 'Actual',     data: trendActual.concat(Array(7).fill(null)),  borderColor: '#6366f1', backgroundColor: 'rgba(99,102,241,.15)', fill: true },
+  { label: 'Projection', data: Array(trendActual.length).fill(null).concat(trendProj), borderColor: '#f59e0b', borderDash: [6,3], fill: false }
+]);
+{% endif %}
+</script>
+{% endblock %}

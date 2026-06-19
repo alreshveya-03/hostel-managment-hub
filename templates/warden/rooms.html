@@ -1,0 +1,38 @@
+{% extends 'base.html' %}
+{% block title %}Rooms – Hostel Hub{% endblock %}
+{% block head %}
+<style>
+.room-card-link {
+  text-decoration: none;
+  color: inherit;
+  display: block;
+}
+.room-card-link:hover .room-mini-card {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 20px rgba(0,0,0,0.12);
+  border-color: var(--accent-blue, #3b82f6);
+}
+.room-mini-card {
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+</style>
+{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Room Management</h1>
+  <a href="{{ url_for('warden.add_room') }}" class="btn btn-primary">+ Add Room</a>
+</div>
+<div class="rooms-grid">
+  {% for r in rooms %}
+    <a href="{{ url_for('warden.room_detail', room_no=r.room_number) }}" class="room-card-link">
+      <div class="room-mini-card {{ 'room-full' if r.occupancy_pct == 100 else 'room-partial' if r.occupied > 0 else 'room-empty' }}">
+        <div class="room-num">{{ r.room_number }}</div>
+        <div class="room-block">{{ r.block }} · Floor {{ r.floor }}</div>
+        <div class="room-occ-bar"><div class="occ-fill" style="width:{{ r.occupancy_pct }}%"></div></div>
+        <div class="room-stats">{{ r.occupied }}/{{ r.capacity }} · {{ r.available }} free</div>
+        <div class="room-pct {{ 'text-danger' if r.occupancy_pct == 100 else 'text-success' }}">{{ r.occupancy_pct }}%</div>
+      </div>
+    </a>
+  {% endfor %}
+</div>
+{% endblock %}

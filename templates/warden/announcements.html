@@ -1,0 +1,87 @@
+{% extends 'base.html' %}
+{% block title %}Announcements – Hostel Hub{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>Announcement Management</h1>
+    <p class="page-sub">Post and manage hostel-wide announcements</p>
+  </div>
+  <button class="btn btn-primary" onclick="toggleModal('ann-modal')">+ Post Announcement</button>
+</div>
+
+<!-- New Announcement Modal -->
+<div id="ann-modal" class="modal hidden">
+  <div class="modal-card">
+    <div class="modal-header">
+      <h3>Post New Announcement</h3>
+      <button onclick="toggleModal('ann-modal')" class="modal-close">✕</button>
+    </div>
+    <form method="POST" class="auth-form">
+      <div class="form-group">
+        <label>Title *</label>
+        <input type="text" name="title" required placeholder="Announcement title">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Priority</label>
+          <select name="priority">
+            <option value="normal">Normal</option>
+            <option value="urgent">Urgent</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Target Audience</label>
+          <select name="target_audience">
+            <option value="all">All Students</option>
+            <option value="first_year">1st Year Only</option>
+            <option value="second_year">2nd Year Only</option>
+            <option value="third_year">3rd Year Only</option>
+            <option value="final_year">Final Year Only</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Content *</label>
+        <textarea name="content" required rows="5" placeholder="Write the full announcement here…"></textarea>
+      </div>
+      <button type="submit" class="btn btn-primary btn-block">Post Announcement</button>
+    </form>
+  </div>
+</div>
+
+<!-- Announcements List -->
+{% if announcements %}
+  <div class="ann-grid">
+    {% for a in announcements %}
+      <div class="ann-full-card ann-{{ a.priority }}" style="{{ 'opacity:.65' if not a.is_active }}">
+        <div class="ann-card-header">
+          <span class="badge badge-{{ a.priority }}">{{ a.priority.title() }}</span>
+          <span class="badge" style="background:rgba(255,255,255,.07);color:var(--text-muted)">{{ a.target_audience.replace('_',' ').title() }}</span>
+          {% if not a.is_active %}
+            <span class="badge" style="background:rgba(255,255,255,.05);color:var(--text-dim)">Archived</span>
+          {% endif %}
+          <span class="ann-date">{{ a.created_at.strftime('%d %b %Y, %I:%M %p') if a.created_at else '' }}</span>
+        </div>
+        <h3>{{ a.title }}</h3>
+        <p>{{ a.content }}</p>
+        <div class="ann-footer" style="display:flex;align-items:center;justify-content:space-between;margin-top:1rem">
+          <span>Posted by <strong>{{ a.warden_name }}</strong></span>
+          {% if a.is_active %}
+            <form method="POST" action="{{ url_for('warden.delete_announcement', aid=a.id) }}"
+                  onsubmit="return confirm('Archive this announcement?')">
+              <button type="submit" class="btn btn-sm btn-ghost" style="color:var(--accent-red)">Archive</button>
+            </form>
+          {% endif %}
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+{% else %}
+  <div class="empty-page-state">
+    <div class="eps-icon">📢</div>
+    <h3>No Announcements Yet</h3>
+    <p>Post an announcement to inform all hostel students at once.</p>
+    <button class="btn btn-primary" style="margin-top:1rem" onclick="toggleModal('ann-modal')">+ Post First Announcement</button>
+  </div>
+{% endif %}
+{% endblock %}

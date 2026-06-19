@@ -1,0 +1,51 @@
+{% extends 'base.html' %}
+{% block title %}Attendance – Hostel Hub{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>My Attendance</h1>
+  <form class="month-picker" method="GET">
+    <input type="month" name="month" value="{{ month }}">
+    <button type="submit" class="btn btn-outline btn-sm">View</button>
+  </form>
+</div>
+
+<div class="att-summary-cards">
+  <div class="att-stat-card att-present"><div class="att-num">{{ present }}</div><div>Present</div></div>
+  <div class="att-stat-card att-absent"><div class="att-num">{{ absent }}</div><div>Absent</div></div>
+  <div class="att-stat-card {{ 'att-good' if pct >= 75 else 'att-low' }}">
+    <div class="att-num">{{ pct }}%</div>
+    <div>Attendance</div>
+  </div>
+</div>
+{% if pct < 75 and records %}
+  <div class="alert alert-warning">⚠️ Your attendance is below 75%. Please be present regularly to avoid issues.</div>
+{% endif %}
+
+{% if records %}
+  <div class="att-calendar">
+    {% for r in records %}
+      <div class="att-day att-{{ r.status }}">
+        <div class="att-day-num">{{ r.date.day }}</div>
+        <div class="att-day-status">{{ '✓' if r.status == 'present' else '✗' }}</div>
+      </div>
+    {% endfor %}
+  </div>
+  <div class="table-card" style="margin-top:1.5rem">
+    <table class="data-table">
+      <thead><tr><th>Date</th><th>Day</th><th>Status</th><th>Remarks</th></tr></thead>
+      <tbody>
+        {% for r in records %}
+          <tr>
+            <td>{{ r.date }}</td>
+            <td>{{ r.date.strftime('%A') if r.date else '' }}</td>
+            <td><span class="badge badge-{{ r.status }}">{{ r.status.title() }}</span></td>
+            <td>{{ r.remarks or '—' }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% else %}
+  <div class="empty-page-state"><div class="eps-icon">📅</div><h3>No Records for {{ month }}</h3></div>
+{% endif %}
+{% endblock %}

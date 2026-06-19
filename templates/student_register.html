@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Student Register – Hostel Hub</title>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+</head>
+<body>
+<div class="auth-page">
+  <div class="auth-left">
+    <div class="auth-brand"><span class="auth-logo">⬡</span><span>Hostel<strong>Hub</strong></span></div>
+    <h2 class="auth-tagline">Join the smarter<br>hostel experience.</h2>
+    <div class="auth-features">
+      <div class="af">✓ Instant room requests</div>
+      <div class="af">✓ Digital leave management</div>
+      <div class="af">✓ AI-powered chatbot</div>
+      <div class="af">✓ Real-time mess updates</div>
+    </div>
+  </div>
+  <div class="auth-right">
+    <div class="auth-card" style="max-width:560px;">
+      <div class="auth-header">
+        <h1>Create Account</h1>
+        <p>Fill in your details to get started</p>
+      </div>
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% for cat, msg in messages %}
+          <div class="alert alert-{{ cat }}">{{ msg }}</div>
+        {% endfor %}
+      {% endwith %}
+      <form method="POST" class="auth-form">
+        <div class="form-row">
+          <div class="form-group">
+            <label>Full Name *</label>
+            <input type="text" name="name" required placeholder="Your full name">
+          </div>
+          <div class="form-group">
+            <label>Registration Number *</label>
+            <input type="text" name="reg_number" required placeholder="e.g. 21CS001">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Email *</label>
+            <input type="email" name="email" required placeholder="email@college.edu">
+          </div>
+          <div class="form-group">
+            <label>Phone</label>
+            <input type="tel" name="phone" placeholder="10-digit number">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Department</label>
+            <select name="department" required>
+              <option value="">Select Department</option>
+              <option value="CSE">Computer Science (CSE)</option>
+              <option value="IT">Information Technology (IT)</option>
+              <option value="AIDS">Artificial Intelligence & Data Science (AIDS)</option>
+              <option value="ECE">Electronics (ECE)</option>
+              <option value="EEE">Electrical (EEE)</option>
+              <option value="MECH">Mechanical (MECH)</option>
+              <option value="CIVIL">Civil (CIVIL)</option>
+              <option value="MBA">MBA</option>
+              <option value="MCA">MCA</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Year</label>
+            <select name="year">
+              <option value="1">1st Year</option>
+              <option value="2">2nd Year</option>
+              <option value="3">3rd Year</option>
+              <option value="4">4th Year</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Gender</label>
+            <select name="gender">
+              <option value="">Prefer not to say</option>
+              <option>Male</option>
+              <option>Female</option>
+              <option>Other</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Password *</label>
+            <input type="password" name="password" required placeholder="Min 6 characters">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Address</label>
+          <textarea name="address" rows="2" placeholder="Home address"></textarea>
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-block">Create Account →</button>
+      </form>
+      <!-- Guest AI Suggestions Panel -->
+      <div style="margin-top: 1.5rem; border-top: 1px solid var(--border-color, #e5e7eb); padding-top: 1.5rem;">
+        <button type="button" class="btn btn-outline btn-block" style="color: var(--accent-purple, #8b5cf6); border-color: var(--accent-purple, #8b5cf6); background: transparent;" onclick="getGuestSuggestions()">
+          🤖 Preview AI Recommended Rooms
+        </button>
+        <div id="register-ai-box" style="display: none; margin-top: 1rem; padding: 1rem; border: 1px solid var(--border-color, #e5e7eb); border-radius: 8px; background-color: var(--bg-card, #ffffff);">
+          <h4 style="color: var(--accent-purple, #8b5cf6); margin-top: 0; margin-bottom: 0.5rem;">Recommended Rooms for You</h4>
+          <div id="register-ai-results" style="display: grid; gap: 0.75rem;"></div>
+        </div>
+      </div>
+      <div class="auth-footer">
+        <span>Already registered?</span>
+        <a href="{{ url_for('auth.student_login') }}">Login here</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+async function getGuestSuggestions() {
+  const deptSelect = document.querySelector('select[name="department"]');
+  const yearSelect = document.querySelector('select[name="year"]');
+  const resultsBox = document.getElementById('register-ai-box');
+  const resultsDiv = document.getElementById('register-ai-results');
+  
+  const dept = deptSelect.value;
+  const year = yearSelect.value;
+  
+  if (!dept) {
+    alert('Please select a Department first to get recommendations.');
+    return;
+  }
+  
+  resultsBox.style.display = 'block';
+  resultsDiv.innerHTML = '<div style="text-align:center; padding: 1rem; color: var(--text-muted, #6b7280);">Analyzing rooms...</div>';
+  
+  try {
+    const res = await fetch(`/api/rooms/suggest_guest?department=${dept}&year=${year}`);
+    if (!res.ok) throw new Error('API Error');
+    const data = await res.json();
+    const suggestions = data.suggestions || [];
+    
+    if (suggestions.length === 0) {
+      resultsDiv.innerHTML = '<div style="color: var(--text-muted, #6b7280); padding: 0.5rem 0;">No rooms currently available matching constraints.</div>';
+      return;
+    }
+    
+    const medals = ['🥇', '🥈', '🥉'];
+    resultsDiv.innerHTML = suggestions.map((r, i) => `
+      <div style="padding: 0.75rem; border: 1px dashed var(--border-color, #e5e7eb); border-radius: 6px; text-align: left;">
+        <div style="display: flex; justify-content: space-between; font-weight: 600; font-size: 0.9rem;">
+          <span>${medals[i] || '🏠'} Room ${r.room_number} (${r.block})</span>
+          <span style="color: var(--accent-purple, #8b5cf6);">${r.score}% Match</span>
+        </div>
+        <div style="font-size: 0.8rem; color: var(--text-muted, #6b7280); margin-top: 0.25rem;">
+          Floor ${r.floor} · Type: ${r.room_type} · ${r.available}/${r.capacity} beds free
+        </div>
+        <div style="font-size: 0.8rem; font-style: italic; margin-top: 0.25rem; color: var(--accent-blue, #3b82f6);">${r.reason}</div>
+      </div>
+    `).join('');
+  } catch (e) {
+    resultsDiv.innerHTML = '<div style="color: #ef4444; padding: 0.5rem 0;">Could not load suggestions. Please try again.</div>';
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,92 @@
+{% extends 'base.html' %}
+{% block title %}My Room – Hostel Hub{% endblock %}
+{% block content %}
+<div class="page-header"><h1>My Room</h1></div>
+{% if student.room_number %}
+<div class="room-layout">
+  <div class="room-card big-card">
+    <div class="room-number-display">{{ student.room_number }}</div>
+    <div class="room-details-grid">
+      <div class="rd"><span class="rd-label">Block</span><span class="rd-value">{{ student.block }}</span></div>
+      <div class="rd"><span class="rd-label">Floor</span><span class="rd-value">{{ student.floor }}</span></div>
+      <div class="rd"><span class="rd-label">Type</span><span class="rd-value">{{ student.room_type.title() if student.room_type else 'N/A' }}</span></div>
+    </div>
+  </div>
+  <div class="room-mates-section">
+    <h3>Room-mates ({{ room_mates|length }})</h3>
+    {% if room_mates %}
+      {% for rm in room_mates %}
+        <div class="roommate-card">
+          <div class="rm-avatar">{{ rm.name[0].upper() }}</div>
+          <div class="rm-info">
+            <strong>{{ rm.name }}</strong>
+            <div>{{ rm.reg_number }} · {{ rm.department }}</div>
+            <div>Year {{ rm.year }} · {{ rm.phone or 'No phone' }}</div>
+          </div>
+        </div>
+      {% endfor %}
+    {% else %}
+      <div class="empty-state">No room-mates yet.</div>
+    {% endif %}
+  </div>
+</div>
+{% else %}
+<div class="empty-page-state" style="margin-bottom: 2rem;">
+  <div class="eps-icon">🏠</div>
+  <h3>No Room Assigned</h3>
+  <p>You haven't been assigned a room yet. Please contact the warden for room allocation.</p>
+</div>
+
+<div class="form-card" style="border: 1px solid var(--accent-purple, #8b5cf6); border-left-width: 4px;">
+  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:1rem;">
+    <div>
+      <h3 style="color:var(--accent-purple, #8b5cf6); margin:0;">🤖 Get AI Room Suggestions</h3>
+      <p style="color:var(--text-muted, #6b7280); margin:0.25rem 0 0 0; font-size:0.9rem;">View recommended rooms suited for your profile before allocation.</p>
+    </div>
+    <button class="btn btn-primary" onclick="getRoomPageSuggestions()">Get AI Suggestions</button>
+  </div>
+  <div id="room-page-ai-box" style="display:none; margin-top:1.5rem; border-top:1px dashed var(--border-color, #e5e7eb); padding-top:1.25rem;">
+    <div id="room-page-ai-results" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap:1rem;"></div>
+  </div>
+</div>
+{% endif %}
+
+{% block scripts %}
+<script>
+async function getRoomPageSuggestions() {
+  const box = document.getElementById('room-page-ai-box');
+  const results = document.getElementById('room-page-ai-results');
+  box.style.display = 'block';
+  results.innerHTML = '<div style="grid-column: 1/-1; text-align:center; padding: 2rem; color:var(--text-muted, #6b7280)">Analysing rooms…</div>';
+  
+  try {
+    const res = await fetch('/api/rooms/suggest');
+    if (!res.ok) throw new Error('API Error');
+    const data = await res.json();
+    const suggestions = data.suggestions || [];
+    
+    if (suggestions.length === 0) {
+      results.innerHTML = '<div style="grid-column: 1/-1; text-align:center; color:var(--text-muted, #6b7280)">No rooms currently available.</div>';
+      return;
+    }
+    
+    const medals = ['🥇', '🥈', '🥉'];
+    results.innerHTML = suggestions.map((r, i) => `
+      <div class="suggest-result-card" style="margin:0; border-left: 4px solid var(--accent-purple, #8b5cf6);">
+        <div class="src-header" style="display:flex; justify-content:space-between; font-weight:600;">
+          <span class="src-room">${medals[i] || '🏠'} Room ${r.room_number}</span>
+          <span class="src-score" style="color:var(--accent-purple, #8b5cf6);">${r.score}% Match</span>
+        </div>
+        <div class="src-meta" style="font-size:0.82rem; color:var(--text-muted, #6b7280); margin-top:0.25rem;">
+          ${r.block} · Floor ${r.floor} · ${r.available}/${r.capacity} free
+        </div>
+        <div class="src-reason" style="font-size:0.8rem; font-style:italic; color:var(--accent-blue, #3b82f6); margin-top:0.25rem;">${r.reason}</div>
+      </div>
+    `).join('');
+  } catch(e) {
+    results.innerHTML = '<div style="grid-column: 1/-1; text-align:center; color:#ef4444">Could not load suggestions. Please try again.</div>';
+  }
+}
+</script>
+{% endblock %}
+{% endblock %}

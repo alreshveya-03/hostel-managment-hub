@@ -1,0 +1,242 @@
+{% extends 'base.html' %}
+{% block title %}Messages – Hostel Hub{% endblock %}
+
+{% block content %}
+<div class="chat-dashboard-container">
+  
+  <!-- Sidebar of Students -->
+  <div class="chat-sidebar">
+    <div class="sidebar-header">
+      <h3>Conversations</h3>
+    </div>
+    
+    <!-- Search Box -->
+    <div class="chat-search-box">
+      <form method="GET" action="{{ url_for('warden.messages') }}" class="search-form">
+        <input type="text" name="q" placeholder="Search student by name/reg..." 
+               value="{{ search_query or '' }}" autocomplete="off">
+        {% if search_query %}
+          <a href="{{ url_for('warden.messages') }}" class="btn-clear-search">✕</a>
+        {% endif %}
+      </form>
+    </div>
+    
+    <div class="contacts-list">
+      {% for s in students %}
+        <a href="{{ url_for('warden.messages', student_id=s.student_id, q=search_query) }}" 
+           class="contact-card {% if active_student and s.student_id == active_student.student_id %}active{% endif %}">
+          <div class="contact-avatar">{{ s.name[0].upper() }}</div>
+          <div class="contact-info">
+            <div class="contact-meta">
+              <span class="contact-name">{{ s.name }}</span>
+              {% if s.unread_count > 0 %}
+                <span class="badge-unread-count">{{ s.unread_count }}</span>
+              {% endif %}
+            </div>
+            <div class="contact-snippet">
+              {% if s.last_message %}
+                {{ s.last_message[:35] }}{% if s.last_message|length > 35 %}...{% endif %}
+              {% else %}
+                <span class="no-messages-text">No conversation yet</span>
+              {% endif %}
+            </div>
+            <div class="contact-block-label">Room {{ s.room_no or 'Unassigned' }}</div>
+          </div>
+        </a>
+      {% endfor %}
+      
+      {% if not students %}
+        <div class="sidebar-empty">
+          <p>No students found.</p>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Chat Area -->
+  <div class="chat-main">
+    {% if active_student %}
+      <div class="chat-header">
+        <div class="contact-header-avatar">{{ active_student.name[0].upper() }}</div>
+        <div class="contact-header-details">
+          <h4>{{ active_student.name }}</h4>
+          <p>Reg No: {{ active_student.register_number }} · Room: {{ active_student.room_no or 'Unassigned' }}</p>
+        </div>
+      </div>
+      
+      <div class="chat-body" id="chat-body">
+        <div class="chat-loading-placeholder">Loading conversation history...</div>
+      </div>
+      
+      <div class="chat-footer">
+        <form id="chat-form" class="chat-input-form" onsubmit="sendMessage(event)">
+          <input type="text" id="message-input" placeholder="Type a reply (max 1000 characters)..." 
+                 maxlength="1000" required autocomplete="off">
+          <button type="submit" class="btn btn-primary">Reply</button>
+        </form>
+        <div class="char-counter" id="char-counter">0 / 1000</div>
+      </div>
+    {% else %}
+      <div class="chat-empty-state">
+        <div class="empty-icon">💬</div>
+        <h3>No Conversation Selected</h3>
+        <p>Select a student from the sidebar or use the search bar to start messaging.</p>
+      </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{% if active_student %}
+<script>
+const activeStudentId = parseInt("{{ active_student.student_id }}");
+const chatBody = document.getElementById('chat-body');
+const chatForm = document.getElementById('chat-form');
+const messageInput = document.getElementById('message-input');
+const charCounter = document.getElementById('char-counter');
+
+let lastMessageCount = 0;
+
+// Escape HTML for XSS prevention
+function escapeHTML(str) {
+  return str.replace(/[&<>'"]/g, 
+    tag => ({
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      "'": '&#39;',
+      '"': '&quot;'
+    }[tag] || tag)
+  );
+}
+
+// Fetch and render chat history
+async function loadHistory(isFirstLoad = false) {
+  try {
+    const response = await fetch(`/warden/messages/history/${activeStudentId}`);
+    if (!response.ok) throw new Error("Failed to fetch messages");
+    
+    const data = await response.json();
+    const messages = data.messages || [];
+    
+    if (messages.length === 0) {
+      chatBody.innerHTML = `
+        <div class="chat-empty-state" style="height: 100%; justify-content: center;">
+          <div class="empty-icon" style="font-size: 2.5rem;">👋</div>
+          <h3>Start Conversation</h3>
+          <p>Send a message below to start your conversation with ${escapeHTML("{{ active_student.name }}")}.</p>
+        </div>
+      `;
+      return;
+    }
+    
+    // Check if new messages arrived
+    if (messages.length !== lastMessageCount || isFirstLoad) {
+      chatBody.innerHTML = '';
+      messages.forEach(msg => {
+        const isSelf = msg.sender_role === 'warden';
+        const msgDiv = document.createElement('div');
+        msgDiv.className = `message-bubble-wrapper ${isSelf ? 'self' : 'other'}`;
+        
+        // Convert UTC timestamp to local time for display
+        let dateStr = msg.created_at;
+        try {
+          const utcDate = new Date(msg.created_at.replace(' ', 'T') + 'Z');
+          dateStr = utcDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        } catch(e) {}
+        
+        const readStatus = isSelf ? (msg.is_read ? '✓✓' : '✓') : '';
+        const readStatusClass = msg.is_read ? 'read' : 'unread';
+        
+        msgDiv.innerHTML = `
+          <div class="message-bubble">
+            <div class="message-text"></div>
+            <div class="message-meta">
+              <span class="message-time">${escapeHTML(dateStr)}</span>
+              ${isSelf ? `<span class="message-status ${readStatusClass}">${readStatus}</span>` : ''}
+            </div>
+          </div>
+        `;
+        
+        // Escape content safely via textContent
+        msgDiv.querySelector('.message-text').textContent = msg.message_text;
+        
+        chatBody.appendChild(msgDiv);
+      });
+      
+      // Auto-scroll to newest message
+      chatBody.scrollTop = chatBody.scrollHeight;
+      lastMessageCount = messages.length;
+    }
+  } catch (error) {
+    console.error("Error loading chat history:", error);
+    if (isFirstLoad) {
+      chatBody.innerHTML = `<div class="chat-error-placeholder">Error loading chat history. Please refresh the page.</div>`;
+    }
+  }
+}
+
+// Send a message
+async function sendMessage(e) {
+  e.preventDefault();
+  const text = messageInput.value.trim();
+  if (!text) return;
+  if (text.length > 1000) {
+    alert("Message exceeds 1000 characters limit.");
+    return;
+  }
+  
+  messageInput.value = '';
+  charCounter.textContent = '0 / 1000';
+  
+  try {
+    const response = await fetch('/warden/messages/send', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        student_id: activeStudentId,
+        message_text: text
+      })
+    });
+    
+    if (!response.ok) {
+      const data = await response.json();
+      throw new Error(data.error || "Failed to send message");
+    }
+    
+    // Refresh history immediately
+    await loadHistory();
+  } catch (error) {
+    alert("Failed to send message: " + error.message);
+  }
+}
+
+// Character counter
+messageInput.addEventListener('input', () => {
+  const len = messageInput.value.length;
+  charCounter.textContent = `${len} / 1000`;
+  if (len >= 950) {
+    charCounter.style.color = 'var(--accent-red)';
+  } else {
+    charCounter.style.color = 'var(--text-muted)';
+  }
+});
+
+// Initial load
+loadHistory(true);
+
+// Poll every 3 seconds
+const pollInterval = setInterval(() => {
+  loadHistory(false);
+}, 3000);
+
+// Cleanup on page leave
+window.addEventListener('beforeunload', () => {
+  clearInterval(pollInterval);
+});
+</script>
+{% endif %}
+{% endblock %}

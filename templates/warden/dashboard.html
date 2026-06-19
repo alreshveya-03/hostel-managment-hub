@@ -1,0 +1,64 @@
+{% extends 'base.html' %}
+{% block title %}Warden Dashboard – Hostel Hub{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>Warden Dashboard</h1>
+    <p class="page-sub">Welcome, {{ session.name }} · Hostel Management Overview</p>
+  </div>
+  <a href="{{ url_for('warden.emergency') }}" class="btn btn-danger">🚨 Emergency</a>
+</div>
+
+<div class="stats-grid stats-grid-6">
+  <div class="stat-card"><div class="stat-icon">👥</div><div class="stat-info"><div class="stat-value">{{ total_students }}</div><div class="stat-label">Total Students</div></div><a href="{{ url_for('warden.students') }}" class="stat-action">Manage →</a></div>
+  <div class="stat-card"><div class="stat-icon">🏠</div><div class="stat-info"><div class="stat-value">{{ total_rooms }}</div><div class="stat-label">Total Rooms</div></div><a href="{{ url_for('warden.rooms') }}" class="stat-action">Manage →</a></div>
+  <div class="stat-card stat-success"><div class="stat-icon">🔒</div><div class="stat-info"><div class="stat-value">{{ occupied_rooms }}</div><div class="stat-label">Occupied Rooms</div></div><a href="{{ url_for('warden.rooms') }}" class="stat-action">Manage →</a></div>
+  <div class="stat-card"><div class="stat-icon">🔓</div><div class="stat-info"><div class="stat-value">{{ vacant_rooms }}</div><div class="stat-label">Vacant Rooms</div></div><a href="{{ url_for('warden.rooms') }}" class="stat-action">Manage →</a></div>
+  <div class="stat-card {{ 'stat-warning' if pending_comp > 0 else '' }}"><div class="stat-icon">🔧</div><div class="stat-info"><div class="stat-value">{{ pending_comp }}</div><div class="stat-label">Pending Complaints</div></div><a href="{{ url_for('warden.complaints') }}" class="stat-action">Manage →</a></div>
+  <div class="stat-card {{ 'stat-warning' if pending_leave > 0 else '' }}"><div class="stat-icon">✈️</div><div class="stat-info"><div class="stat-value">{{ pending_leave }}</div><div class="stat-label">Pending Leaves</div></div><a href="{{ url_for('warden.leave') }}" class="stat-action">Manage →</a></div>
+</div>
+
+<div class="stats-grid" style="margin-top:.5rem">
+  <div class="stat-card"><div class="stat-icon">📅</div><div class="stat-info"><div class="stat-value">{{ today_present }}</div><div class="stat-label">Present Today</div></div></div>
+  <div class="stat-card"><div class="stat-icon">⭐</div><div class="stat-info"><div class="stat-value">{{ avg_feedback }}/5</div><div class="stat-label">Avg Mess Rating (7d)</div></div></div>
+  <div class="stat-card"><div class="stat-icon">📊</div><div class="stat-info"><div class="stat-value">View</div><div class="stat-label">Full Analytics</div></div><a href="{{ url_for('warden.analytics') }}" class="stat-action">Open →</a></div>
+</div>
+
+<div class="dashboard-grid">
+  <div class="dash-section">
+    <div class="section-header"><h3>Recent Complaints</h3><a href="{{ url_for('warden.complaints') }}" class="view-all">View all</a></div>
+    {% if recent_comp %}
+      <div class="complaint-list">
+        {% for c in recent_comp %}
+          <div class="complaint-item">
+            <div class="ci-title">{{ c.student_name }} · {{ c.title[:50] }}{% if c.title|length>50 %}…{% endif %}</div>
+            <div class="ci-meta">
+              <span class="badge badge-{{ c.status }}">{{ c.status.replace('_',' ').title() }}</span>
+              <span class="badge badge-{{ c.ai_priority or c.priority }}">{{ (c.ai_priority or c.priority).title() }}</span>
+              <span class="ci-date">{{ c.created_at.strftime('%d %b') if c.created_at else '' }}</span>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="empty-state">No complaints.</div>
+    {% endif %}
+  </div>
+
+  <div class="dash-section">
+    <div class="section-header"><h3>Recent Announcements</h3><a href="{{ url_for('warden.announcements') }}" class="view-all">Manage</a></div>
+    {% if recent_ann %}
+      {% for a in recent_ann %}
+        <div class="ann-item">
+          <span class="badge badge-{{ a.priority }}">{{ a.priority.title() }}</span>
+          <strong>{{ a.title }}</strong>
+          <p class="ann-preview">{{ a.content[:80] }}{% if a.content|length>80 %}…{% endif %}</p>
+        </div>
+      {% endfor %}
+    {% else %}
+      <div class="empty-state">No announcements.</div>
+    {% endif %}
+    <a href="{{ url_for('warden.announcements') }}" class="btn btn-outline btn-sm" style="margin-top:.75rem">+ Post Announcement</a>
+  </div>
+</div>
+{% endblock %}

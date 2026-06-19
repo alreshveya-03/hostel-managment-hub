@@ -1,0 +1,40 @@
+{% extends 'base.html' %}
+{% block title %}Leave Management – Hostel Hub{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Leave Requests</h1>
+  <div class="tab-btns-inline">
+    <a href="{{ url_for('warden.leave', status='pending') }}" class="btn {{ 'btn-primary' if status=='pending' else 'btn-ghost' }} btn-sm">Pending</a>
+    <a href="{{ url_for('warden.leave', status='approved') }}" class="btn {{ 'btn-primary' if status=='approved' else 'btn-ghost' }} btn-sm">Approved</a>
+    <a href="{{ url_for('warden.leave', status='rejected') }}" class="btn {{ 'btn-primary' if status=='rejected' else 'btn-ghost' }} btn-sm">Rejected</a>
+  </div>
+</div>
+
+{% for l in leaves %}
+  <div class="leave-card">
+    <div class="leave-card-header">
+      <div>
+        <strong>{{ l.student_name }}</strong> <code>{{ l.reg_number }}</code>
+        <div class="comp-meta">{{ l.from_date }} → {{ l.to_date }} · Destination: {{ l.destination or 'N/A' }} · Contact: {{ l.contact_during_leave or 'N/A' }}</div>
+        <div class="comp-meta">Reason: {{ l.reason[:120] }}{% if l.reason|length>120 %}…{% endif %}</div>
+      </div>
+      <span class="badge badge-{{ l.status }}">{{ l.status.title() }}</span>
+    </div>
+    {% if l.status == 'pending' %}
+    <form method="POST" action="{{ url_for('warden.leave_action', lid=l.id) }}" class="comp-respond-form">
+      <div class="form-row">
+        <div class="form-group" style="flex:2"><label>Remarks</label><input type="text" name="remarks" placeholder="Optional remarks…"></div>
+        <div class="form-group" style="display:flex;gap:.5rem;align-items:flex-end">
+          <button type="submit" name="action" value="approve" class="btn btn-success btn-sm">✓ Approve</button>
+          <button type="submit" name="action" value="reject" class="btn btn-danger btn-sm">✗ Reject</button>
+        </div>
+      </div>
+    </form>
+    {% else %}
+    <div class="comp-meta">Remarks: {{ l.warden_remarks or 'None' }}</div>
+    {% endif %}
+  </div>
+{% else %}
+  <div class="empty-page-state"><div class="eps-icon">✈️</div><h3>No {{ status.title() }} Leave Requests</h3></div>
+{% endfor %}
+{% endblock %}

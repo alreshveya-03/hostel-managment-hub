@@ -1,0 +1,197 @@
+{% extends 'base.html' %}
+{% block title %}AI Room Allocation – Hostel Hub{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>🤖 Smart Room Allocation</h1>
+    <p class="page-sub">AI recommends the best room for each student based on department, year, and occupancy</p>
+  </div>
+</div>
+
+<div class="ai-room-layout">
+  <!-- Left: Student selector + AI result -->
+  <div>
+    <div class="form-card" style="margin-bottom:1.25rem">
+      <h3>Select Student</h3>
+      <div class="form-group" style="margin-bottom:1rem">
+        <label>Unassigned Students ({{ students|length }})</label>
+        <select id="student-select" onchange="loadSuggestions()">
+          <option value="">— Choose a student —</option>
+          {% for s in students %}
+            <option value="{{ s.id }}"
+              data-name="{{ s.name }}"
+              data-dept="{{ s.department or '' }}"
+              data-year="{{ s.year }}">
+              {{ s.name }} · {{ s.reg_number }} · {{ s.department or 'N/A' }} · Yr {{ s.year }}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+      <button class="btn btn-primary btn-block" onclick="loadSuggestions()">
+        🤖 Get AI Suggestions
+      </button>
+    </div>
+
+    <!-- AI Suggestions appear here -->
+    <div id="suggestions-container" style="display:none">
+      <div class="section-header" style="margin-bottom:.75rem">
+        <h3 style="color:var(--accent-purple)">AI Recommendations</h3>
+        <span id="student-label" style="font-size:.82rem;color:var(--text-muted)"></span>
+      </div>
+      <div id="suggestions-list"></div>
+      <div class="ai-hint" style="margin-top:.75rem">
+        🤖 Scored on availability, department-block preference, year-floor alignment, and occupancy level.
+      </div>
+    </div>
+
+    <div id="loading-indicator" style="display:none;text-align:center;padding:2rem;color:var(--text-muted)">
+      <div style="font-size:2rem;animation:spin 1s linear infinite;display:inline-block">⟳</div>
+      <p style="margin-top:.5rem">Analysing rooms…</p>
+    </div>
+  </div>
+
+  <!-- Right: All available rooms -->
+  <div>
+    <div class="section-header"><h3>Available Rooms ({{ rooms|length }})</h3></div>
+    {% if rooms %}
+      <div class="table-card">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Room</th>
+              <th>Block</th>
+              <th>Floor</th>
+              <th>Type</th>
+              <th>Available</th>
+              <th>Occupancy</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in rooms %}
+              <tr>
+                <td><strong style="font-family:'JetBrains Mono',monospace">{{ r.room_number }}</strong></td>
+                <td>{{ r.block }}</td>
+                <td>{{ r.floor }}</td>
+                <td><span class="badge badge-cat">{{ r.room_type if r.room_type else 'Standard' }}</span></td>
+                <td>
+                  <span class="{{ 'text-success' if r.available > 1 else 'text-danger' if r.available == 0 else '' }}">
+                    {{ r.available }}/{{ r.capacity }}
+                  </span>
+                </td>
+                <td>
+                  <div style="display:flex;align-items:center;gap:.5rem">
+                    <div class="room-occ-bar" style="width:80px">
+                      <div class="occ-fill" style="width:{{ r.occupancy_pct }}%"></div>
+                    </div>
+                    <span style="font-size:.78rem;color:var(--text-muted)">{{ r.occupancy_pct }}%</span>
+                  </div>
+                </td>
+                <td>
+                  <button class="btn btn-sm btn-outline"
+                    onclick="assignRoom('{{ r.room_number }}', '{{ r.room_number }}')">
+                    Assign
+                  </button>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="empty-page-state">
+        <div class="eps-icon">🏠</div>
+        <h3>No Available Rooms</h3>
+        <p>All rooms are currently at full capacity.</p>
+        <a href="{{ url_for('warden.add_room') }}" class="btn btn-primary" style="margin-top:1rem">+ Add New Room</a>
+      </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Assign form (hidden, submitted programmatically) -->
+<form id="assign-form" method="POST" action="{{ url_for('warden.assign_room') }}" style="display:none">
+  <input type="hidden" name="student_id" id="assign-student-id">
+  <input type="hidden" name="room_id"    id="assign-room-id">
+</form>
+{% endblock %}
+
+{% block scripts %}
+<style>
+@keyframes spin { to { transform: rotate(360deg); } }
+</style>
+<script>
+async function loadSuggestions() {
+  const sel = document.getElementById('student-select');
+  const sid = sel.value;
+  if (!sid) return;
+
+  const opt = sel.options[sel.selectedIndex];
+  document.getElementById('student-label').textContent =
+    `For: ${opt.dataset.name} · ${opt.dataset.dept || 'N/A'} · Year ${opt.dataset.year}`;
+
+  document.getElementById('suggestions-container').style.display = 'none';
+  document.getElementById('loading-indicator').style.display = 'block';
+
+  try {
+    const res  = await fetch('{{ url_for("warden.ai_room_suggest") }}', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: `student_id=${sid}`
+    });
+    const data = await res.json();
+    renderSuggestions(data.suggestions || []);
+  } catch(e) {
+    document.getElementById('loading-indicator').style.display = 'none';
+    alert('Error fetching suggestions. Please try again.');
+  }
+}
+
+function renderSuggestions(suggestions) {
+  document.getElementById('loading-indicator').style.display = 'none';
+  const container = document.getElementById('suggestions-list');
+
+  if (!suggestions.length) {
+    container.innerHTML = '<div class="empty-state">No suitable rooms found.</div>';
+    document.getElementById('suggestions-container').style.display = 'block';
+    return;
+  }
+
+  const medals = ['🥇', '🥈', '🥉'];
+  container.innerHTML = suggestions.map((r, i) => `
+    <div class="suggest-result-card">
+      <div class="src-header">
+        <span class="src-room">${medals[i] || '🏠'} ${r.room_number}</span>
+        <span class="src-score">Score: ${r.score}</span>
+      </div>
+      <div class="src-meta">
+        ${r.block} · Floor ${r.floor} ·
+        ${r.available}/${r.capacity} free
+      </div>
+      <div class="src-reason">${r.reason}</div>
+      <button class="btn btn-primary btn-sm btn-block" style="margin-top:.75rem"
+        onclick="assignRoom('${r.room_number}', '${r.room_number}')">
+        Assign This Room
+      </button>
+    </div>
+  `).join('');
+
+  document.getElementById('suggestions-container').style.display = 'block';
+}
+
+function assignRoom(roomId, roomNumber) {
+  const sel = document.getElementById('student-select');
+  const sid = sel.value;
+  if (!sid) {
+    alert('Please select a student first.');
+    return;
+  }
+  const opt = sel.options[sel.selectedIndex];
+  if (!confirm(`Assign ${opt.dataset.name} to room ${roomNumber}?`)) return;
+
+  document.getElementById('assign-student-id').value = sid;
+  document.getElementById('assign-room-id').value    = roomId;
+  document.getElementById('assign-form').submit();
+}
+</script>
+{% endblock %}

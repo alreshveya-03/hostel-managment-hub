@@ -1,0 +1,23 @@
+{% extends 'base.html' %}
+{% block title %}Announcements – Hostel Hub{% endblock %}
+{% block content %}
+<div class="page-header"><h1>Announcements</h1></div>
+{% if announcements %}
+  <div class="ann-grid">
+    {% for a in announcements %}
+      <div class="ann-full-card ann-{{ a.priority }}">
+        <div class="ann-card-header">
+          <span class="badge badge-{{ a.priority }}">{{ a.priority.title() }}</span>
+          <span>{{ a.target_audience.title() }}</span>
+          <span class="ann-date">{{ a.created_at.strftime('%d %b %Y, %I:%M %p') if a.created_at else '' }}</span>
+        </div>
+        <h3>{{ a.title }}</h3>
+        <p>{{ a.content }}</p>
+        <div class="ann-footer">Posted by {{ a.warden_name }}</div>
+      </div>
+    {% endfor %}
+  </div>
+{% else %}
+  <div class="empty-page-state"><div class="eps-icon">📢</div><h3>No Announcements</h3></div>
+{% endif %}
+{% endblock %}

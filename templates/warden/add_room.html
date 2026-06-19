@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+{% block title %}Add Room – Hostel Hub{% endblock %}
+{% block content %}
+<div class="page-header"><a href="{{ url_for('warden.rooms') }}" class="back-link">← Rooms</a><h1>Add New Room</h1></div>
+<div class="form-card" style="max-width:560px">
+  <form method="POST" class="auth-form">
+    <div class="form-row">
+      <div class="form-group"><label>Room Number *</label><input type="text" name="room_number" required placeholder="e.g. A301"></div>
+      <div class="form-group"><label>Block *</label>
+        <select name="block" required>
+          <option value="Block A">Block A</option>
+          <option value="Block B">Block B</option>
+          <option value="Block C">Block C</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Floor *</label><input type="number" name="floor" required min="1" placeholder="1"></div>
+      <div class="form-group"><label>Capacity *</label><input type="number" name="capacity" required min="1" max="6" value="2"></div>
+    </div>
+    <div class="form-group"><label>Room Type *</label>
+      <select name="room_type" required>
+        <option value="Standard" selected>Standard</option>
+        <option value="Premium">Premium</option>
+        <option value="Deluxe">Deluxe</option>
+      </select>
+    </div>
+    <div class="form-group"><label>Amenities</label><input type="text" name="amenities" placeholder="e.g. AC, WiFi, Attached Bath"></div>
+    <button type="submit" class="btn btn-primary">Add Room</button>
+  </form>
+</div>
+{% endblock %}

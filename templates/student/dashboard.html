@@ -1,0 +1,143 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard – Hostel Hub{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>Welcome back, {{ student.name.split()[0] if student else session.name }} 👋</h1>
+    <p class="page-sub">{{ student.department }} · Year {{ student.year }} · {{ student.room_number or 'No room assigned' }}</p>
+  </div>
+</div>
+
+<div class="stats-grid">
+  <div class="stat-card">
+    <div class="stat-icon">🏠</div>
+    <div class="stat-info">
+      <div class="stat-value">{{ student.room_number or 'N/A' }}</div>
+      <div class="stat-label">My Room</div>
+    </div>
+    <div class="stat-sub">{{ student.block or '–' }} · Floor {{ student.floor or '–' }}</div>
+    {% if student.room_number %}
+      <a href="{{ url_for('student.room') }}" class="stat-action">View details →</a>
+    {% endif %}
+  </div>
+  <div class="stat-card {{ 'stat-warning' if pending_complaints > 0 else '' }}">
+    <div class="stat-icon">🔧</div>
+    <div class="stat-info">
+      <div class="stat-value">{{ pending_complaints }}</div>
+      <div class="stat-label">Pending Complaints</div>
+    </div>
+    <a href="{{ url_for('student.complaints') }}" class="stat-action">View all →</a>
+  </div>
+  <div class="stat-card {{ 'stat-warning' if pending_leaves > 0 else '' }}">
+    <div class="stat-icon">✈️</div>
+    <div class="stat-info">
+      <div class="stat-value">{{ pending_leaves }}</div>
+      <div class="stat-label">Pending Leave</div>
+    </div>
+    <a href="{{ url_for('student.leave') }}" class="stat-action">View all →</a>
+  </div>
+  <div class="stat-card {{ 'stat-success' if today_att and today_att.status == 'present' else 'stat-danger' if today_att else '' }}">
+    <div class="stat-icon">📅</div>
+    <div class="stat-info">
+      <div class="stat-value">{{ today_att.status.title() if today_att else 'Not Marked' }}</div>
+      <div class="stat-label">Today's Attendance</div>
+    </div>
+  </div>
+</div>
+
+{% if not student.room_number %}
+<div class="form-card" style="margin-bottom: 1.5rem; border: 1px solid var(--accent-purple, #8b5cf6); border-left-width: 4px;">
+  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:1rem;">
+    <div>
+      <h3 style="color:var(--accent-purple, #8b5cf6); margin:0;">🤖 Smart Room Recommendations</h3>
+      <p style="color:var(--text-muted, #6b7280); margin: 0.25rem 0 0 0; font-size:0.9rem;">You don't have a room assigned. Click to view recommended rooms based on department preference.</p>
+    </div>
+    <button class="btn btn-primary" onclick="getDashboardSuggestions()">Get AI Suggestions</button>
+  </div>
+  <div id="dashboard-ai-box" style="display:none; margin-top:1.5rem; border-top:1px dashed var(--border-color, #e5e7eb); padding-top:1.25rem;">
+    <div id="dashboard-ai-results" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap:1rem;"></div>
+  </div>
+</div>
+{% endif %}
+
+<div class="dashboard-grid">
+  <div class="dash-section">
+    <div class="section-header"><h3>Recent Complaints</h3><a href="{{ url_for('student.complaints') }}" class="view-all">View all</a></div>
+    {% if recent_complaints %}
+      <div class="complaint-list">
+        {% for c in recent_complaints %}
+          <div class="complaint-item">
+            <div class="ci-title">{{ c.title[:60] }}{% if c.title|length > 60 %}…{% endif %}</div>
+            <div class="ci-meta">
+              <span class="badge badge-{{ c.status }}">{{ c.status.replace('_',' ').title() }}</span>
+              <span class="badge badge-{{ c.ai_priority or c.priority }}">{{ (c.ai_priority or c.priority).title() }}</span>
+              <span class="ci-date">{{ c.created_at.strftime('%d %b') if c.created_at else '' }}</span>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="empty-state">No complaints yet. <a href="{{ url_for('student.complaints') }}">File one</a></div>
+    {% endif %}
+  </div>
+
+  <div class="dash-section">
+    <div class="section-header"><h3>Announcements</h3><a href="{{ url_for('student.announcements') }}" class="view-all">View all</a></div>
+    {% if announcements %}
+      {% for a in announcements %}
+        <div class="ann-item">
+          <span class="badge badge-{{ a.priority }}">{{ a.priority.title() }}</span>
+          <strong>{{ a.title }}</strong>
+          <p class="ann-preview">{{ a.content[:100] }}{% if a.content|length > 100 %}…{% endif %}</p>
+          <small>{{ a.created_at.strftime('%d %b %Y') if a.created_at else '' }}</small>
+        </div>
+      {% endfor %}
+    {% else %}
+      <div class="empty-state">No announcements.</div>
+    {% endif %}
+  </div>
+</div>
+
+<div class="chatbot-fab" onclick="window.location='{{ url_for('student.chatbot') }}'">
+  <span>💬</span> AI Chat
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function getDashboardSuggestions() {
+  const box = document.getElementById('dashboard-ai-box');
+  const results = document.getElementById('dashboard-ai-results');
+  box.style.display = 'block';
+  results.innerHTML = '<div style="grid-column: 1/-1; text-align:center; padding: 2rem; color:var(--text-muted, #6b7280)">Analysing rooms…</div>';
+  
+  try {
+    const res = await fetch('/api/rooms/suggest');
+    if (!res.ok) throw new Error('API Error');
+    const data = await res.json();
+    const suggestions = data.suggestions || [];
+    
+    if (suggestions.length === 0) {
+      results.innerHTML = '<div style="grid-column: 1/-1; text-align:center; color:var(--text-muted, #6b7280)">No rooms currently available.</div>';
+      return;
+    }
+    
+    const medals = ['🥇', '🥈', '🥉'];
+    results.innerHTML = suggestions.map((r, i) => `
+      <div class="suggest-result-card" style="margin:0; border-left: 4px solid var(--accent-purple, #8b5cf6);">
+        <div class="src-header" style="display:flex; justify-content:space-between; font-weight:600;">
+          <span class="src-room">${medals[i] || '🏠'} Room ${r.room_number}</span>
+          <span class="src-score" style="color:var(--accent-purple, #8b5cf6);">${r.score}% Match</span>
+        </div>
+        <div class="src-meta" style="font-size:0.82rem; color:var(--text-muted, #6b7280); margin-top:0.25rem;">
+          ${r.block} · Floor ${r.floor} · ${r.available}/${r.capacity} free
+        </div>
+        <div class="src-reason" style="font-size:0.8rem; font-style:italic; color:var(--accent-blue, #3b82f6); margin-top:0.25rem;">${r.reason}</div>
+      </div>
+    `).join('');
+  } catch(e) {
+    results.innerHTML = '<div style="grid-column: 1/-1; text-align:center; color:#ef4444">Could not load suggestions. Please try again.</div>';
+  }
+}
+</script>
+{% endblock %}

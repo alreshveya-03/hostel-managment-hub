@@ -1,0 +1,92 @@
+{% extends 'base.html' %}
+{% block title %}My Profile – Hostel Hub{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>My Profile</h1>
+  <p class="page-sub">Manage your personal information</p>
+</div>
+<div class="profile-layout">
+  <div class="profile-card-left">
+    <div class="avatar-circle">{{ student.name[0].upper() }}</div>
+    <h3>{{ student.name }}</h3>
+    <div class="profile-badge">{{ student.reg_number }}</div>
+    <div class="profile-meta-list">
+      <div>📧 {{ student.email }}</div>
+      <div>🏛️ {{ student.department or 'N/A' }}</div>
+      <div>📚 Year {{ student.year }}</div>
+      <div>🏠 {{ student.room_number or 'No room' }}</div>
+    </div>
+    {% if warden %}
+      <a href="{{ url_for('student.messages', warden_id=warden.warden_id) }}" class="btn btn-primary btn-block" style="margin-top: 1.25rem;">💬 Message Warden</a>
+    {% endif %}
+  </div>
+  <div class="profile-card-left" style="margin-top: 1.25rem;">
+    <h3 style="color: var(--accent-purple, #8b5cf6); margin-top: 0; font-size: 1.1rem; display: flex; align-items: center; gap: 0.25rem;">🤖 AI Room Suggestion</h3>
+    <p style="font-size: 0.82rem; color: var(--text-muted, #6b7280); margin-top: 0.25rem; margin-bottom: 0.75rem;">See optimal room assignments based on your profile.</p>
+    <button type="button" class="btn btn-outline btn-block btn-sm" onclick="getProfileSuggestions()">Get Suggestions</button>
+    <div id="profile-ai-box" style="display: none; margin-top: 1rem; border-top: 1px dashed var(--border-color, #e5e7eb); padding-top: 0.75rem;">
+      <div id="profile-ai-results" style="display: grid; gap: 0.75rem;"></div>
+    </div>
+  </div>
+  <div class="profile-form-section">
+    <form method="POST" class="form-card">
+      <h3>Edit Information</h3>
+      <div class="form-row">
+        <div class="form-group"><label>Full Name</label><input type="text" name="name" value="{{ student.name }}" required></div>
+        <div class="form-group"><label>Phone</label><input type="tel" name="phone" value="{{ student.phone or '' }}"></div>
+      </div>
+      <div class="form-group"><label>Address</label><textarea name="address" rows="3">{{ student.address or '' }}</textarea></div>
+
+      <button type="submit" class="btn btn-primary">Save Changes</button>
+    </form>
+    <div class="info-card">
+      <h4>Read-only Information</h4>
+      <p><strong>Email:</strong> {{ student.email }}</p>
+      <p><strong>Registration No:</strong> {{ student.reg_number }}</p>
+      <p><strong>Department:</strong> {{ student.department or 'N/A' }}</p>
+      <p><strong>Year:</strong> {{ student.year }}</p>
+      <p><strong>Gender:</strong> {{ student.gender or 'N/A' }}</p>
+      <small>Contact warden to update department, year, or registration number.</small>
+    </div>
+  </div>
+</div>
+
+{% block scripts %}
+<script>
+async function getProfileSuggestions() {
+  const box = document.getElementById('profile-ai-box');
+  const results = document.getElementById('profile-ai-results');
+  box.style.display = 'block';
+  results.innerHTML = '<div style="text-align:center; padding: 1rem; color:var(--text-muted, #6b7280); font-size:0.8rem;">Analyzing...</div>';
+  
+  try {
+    const res = await fetch('/api/rooms/suggest');
+    if (!res.ok) throw new Error('API Error');
+    const data = await res.json();
+    const suggestions = data.suggestions || [];
+    
+    if (suggestions.length === 0) {
+      results.innerHTML = '<div style="color:var(--text-muted, #6b7280); font-size:0.8rem;">No recommendations available.</div>';
+      return;
+    }
+    
+    const medals = ['🥇', '🥈', '🥉'];
+    results.innerHTML = suggestions.map((r, i) => `
+      <div style="padding: 0.6rem; border: 1px dashed var(--border-color, #e5e7eb); border-radius: 6px; text-align: left; background-color: var(--bg-body, #f9fafb);">
+        <div style="display: flex; justify-content: space-between; font-weight: 600; font-size: 0.85rem;">
+          <span>${medals[i] || '🏠'} Room ${r.room_number}</span>
+          <span style="color: var(--accent-purple, #8b5cf6);">${r.score}%</span>
+        </div>
+        <div style="font-size: 0.75rem; color: var(--text-muted, #6b7280); margin-top: 0.15rem;">
+          Block ${r.block} · Floor ${r.floor} · ${r.available}/${r.capacity} free
+        </div>
+        <div style="font-size: 0.75rem; font-style: italic; margin-top: 0.15rem; color: var(--accent-blue, #3b82f6); line-height: 1.2;">${r.reason}</div>
+      </div>
+    `).join('');
+  } catch(e) {
+    results.innerHTML = '<div style="color:#ef4444; font-size: 0.78rem;">Could not load suggestions.</div>';
+  }
+}
+</script>
+{% endblock %}
+{% endblock %}

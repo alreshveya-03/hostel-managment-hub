@@ -1,0 +1,64 @@
+{% extends 'base.html' %}
+{% block title %}Complaints – Hostel Hub{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>My Complaints</h1>
+  <button class="btn btn-primary" onclick="toggleModal('complaint-modal')">+ New Complaint</button>
+</div>
+
+<!-- Modal -->
+<div id="complaint-modal" class="modal hidden">
+  <div class="modal-card">
+    <div class="modal-header"><h3>File New Complaint</h3><button onclick="toggleModal('complaint-modal')" class="modal-close">✕</button></div>
+    <form method="POST" class="auth-form">
+      <div class="form-group"><label>Title *</label><input type="text" name="title" required placeholder="Brief summary of the issue"></div>
+      <div class="form-row">
+        <div class="form-group"><label>Category</label>
+          <select name="category">
+            <option value="general">General</option><option value="electrical">Electrical</option>
+            <option value="plumbing">Plumbing</option><option value="pest">Pest</option>
+            <option value="cleanliness">Cleanliness</option><option value="internet">Internet/WiFi</option>
+            <option value="security">Security</option><option value="mess">Mess</option>
+            <option value="noise">Noise</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group"><label>Description *</label><textarea name="description" required rows="4" placeholder="Describe the issue in detail…"></textarea></div>
+      <div class="ai-hint">🤖 AI will automatically detect the priority and category of your complaint.</div>
+      <button type="submit" class="btn btn-primary btn-block">Submit Complaint</button>
+    </form>
+  </div>
+</div>
+
+{% if complaints %}
+  <div class="table-card">
+    <table class="data-table">
+      <thead><tr><th>#</th><th>Title</th><th>Category</th><th>Priority</th><th>Status</th><th>Response</th><th>Date</th><th>Action</th></tr></thead>
+      <tbody>
+        {% for c in complaints %}
+          <tr>
+            <td>{{ c.id }}</td>
+            <td><strong>{{ c.title[:50] }}{% if c.title|length>50 %}…{% endif %}</strong></td>
+            <td><span class="badge badge-cat">{{ (c.ai_category or c.category).replace('_',' ').title() }}</span></td>
+            <td><span class="badge badge-{{ c.ai_priority or c.priority }}">{{ (c.ai_priority or c.priority).title() }}</span></td>
+            <td><span class="badge badge-{{ c.status }}">{{ c.status.replace('_',' ').title() }}</span></td>
+            <td>{{ c.warden_response[:60] + '…' if c.warden_response and c.warden_response|length>60 else c.warden_response or '—' }}</td>
+            <td>{{ c.created_at.strftime('%d %b %Y') if c.created_at else '—' }}</td>
+            <td>
+              {% if warden %}
+                <a href="{{ url_for('student.messages', warden_id=warden.warden_id) }}" class="btn btn-sm btn-outline">💬 Message</a>
+              {% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% else %}
+  <div class="empty-page-state">
+    <div class="eps-icon">🔧</div>
+    <h3>No Complaints Yet</h3>
+    <p>Click "New Complaint" to file your first complaint. Our AI will analyse the priority automatically.</p>
+  </div>
+{% endif %}
+{% endblock %}

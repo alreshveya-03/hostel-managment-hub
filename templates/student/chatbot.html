@@ -1,0 +1,99 @@
+{% extends 'base.html' %}
+{% block title %}AI Chatbot – Hostel Hub{% endblock %}
+{% block content %}
+<div class="chatbot-page">
+  <div class="chatbot-container">
+    <div class="chatbot-header">
+      <div class="bot-avatar">🤖</div>
+      <div>
+        <h2>Hostel AI Assistant</h2>
+        <p>Ask me about rooms, leave, complaints, attendance, or mess</p>
+      </div>
+      <div class="bot-status online">● Online</div>
+    </div>
+
+    <div class="chat-messages" id="chat-messages">
+      <div class="chat-msg bot-msg">
+        <div class="msg-avatar">🤖</div>
+        <div class="msg-bubble">
+          Hello! I'm your Hostel AI Assistant. I can help you with:
+          <ul class="bot-help-list">
+            <li>🏠 Room details and room-mates</li>
+            <li>✈️ Leave request status</li>
+            <li>🔧 Complaint tracking</li>
+            <li>📊 Attendance percentage</li>
+            <li>🍽️ Today's mess menu</li>
+            <li>📢 Latest announcements</li>
+          </ul>
+          What would you like to know?
+        </div>
+      </div>
+    </div>
+
+    <div class="chat-input-area">
+      <div class="quick-btns">
+        <button class="quick-btn" onclick="sendQuick('What is my room?')">My Room</button>
+        <button class="quick-btn" onclick="sendQuick('What is my attendance this month?')">Attendance</button>
+        <button class="quick-btn" onclick="sendQuick('What is today\'s mess menu?')">Today\'s Menu</button>
+        <button class="quick-btn" onclick="sendQuick('Show my leave requests')">My Leaves</button>
+        <button class="quick-btn" onclick="sendQuick('Show my complaints')">My Complaints</button>
+      </div>
+      <div class="chat-input-row">
+        <input type="text" id="chat-input" placeholder="Type your message…" onkeypress="if(event.key==='Enter') sendMessage()">
+        <button onclick="sendMessage()" class="btn btn-primary send-btn">Send ➤</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const messagesDiv = document.getElementById('chat-messages');
+
+function addMsg(text, isBot) {
+  const div = document.createElement('div');
+  div.className = `chat-msg ${isBot ? 'bot-msg' : 'user-msg'}`;
+  const formatted = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>');
+  div.innerHTML = isBot
+    ? `<div class="msg-avatar">🤖</div><div class="msg-bubble">${formatted}</div>`
+    : `<div class="msg-bubble">${formatted}</div><div class="msg-avatar user-av">{{ session.name[0].upper() }}</div>`;
+  messagesDiv.appendChild(div);
+  messagesDiv.scrollTop = messagesDiv.scrollHeight;
+}
+
+function addTyping() {
+  const div = document.createElement('div');
+  div.className = 'chat-msg bot-msg typing-indicator'; div.id = 'typing';
+  div.innerHTML = '<div class="msg-avatar">🤖</div><div class="msg-bubble"><span></span><span></span><span></span></div>';
+  messagesDiv.appendChild(div); messagesDiv.scrollTop = messagesDiv.scrollHeight;
+}
+
+function removeTyping() { const t = document.getElementById('typing'); if(t) t.remove(); }
+
+async function sendMessage() {
+  const input = document.getElementById('chat-input');
+  const msg = input.value.trim();
+  if (!msg) return;
+  input.value = '';
+  addMsg(msg, false);
+  addTyping();
+  try {
+    const res = await fetch('{{ url_for("student.chatbot_ask") }}', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({message: msg})
+    });
+    const data = await res.json();
+    removeTyping();
+    addMsg(data.response, true);
+  } catch(e) {
+    removeTyping();
+    addMsg('Sorry, I encountered an error. Please try again.', true);
+  }
+}
+
+function sendQuick(text) {
+  document.getElementById('chat-input').value = text;
+  sendMessage();
+}
+</script>
+{% endblock %}
