@@ -3,4 +3,5 @@ __pycache__/
 *.pyc
 .env
 student_credentials.csv
+student_credentials.xlsxstudent_credentials.csv
 student_credentials.xlsx
